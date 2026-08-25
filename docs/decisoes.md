@@ -1,0 +1,127 @@
+# Decisões (ADRs)
+
+Registro curto do que foi decidido e **por quê** — para não re-litigar mais tarde.
+
+---
+
+## ADR-01 — Monorepo pnpm workspaces
+
+`apps/api`, `apps/web`, `packages/shared`.
+
+`shared` existe para que os tipos de recurso (`ContainerSummary`, `StackSummary`, `Task`…) sejam escritos uma vez e consumidos pelos dois lados sem publicar pacote. Consumido via TS path (`"main": "./src/index.ts"`), sem etapa de build.
+
+**Consequência:** um `pnpm dev` sobe os dois apps; renomear um campo quebra o build dos dois lados na hora, que é o comportamento desejado.
+
+---
+
+## ADR-02 — dockerode para Engine API, CLI para orquestração
+
+| Vai por dockerode | Vai por `spawn` do CLI |
+|---|---|
+| list / inspect | `docker compose up/down/build/pull` |
+| start / stop / restart / kill / pause | `docker build` (BuildKit) |
+| remove / prune | |
+| logs / stats / events | |
+
+**Por quê:** a Engine API não tem nenhum conceito de "stack" — Compose é uma ferramenta cliente que cria recursos comuns e os marca com labels. E BuildKit via API exige uma sessão gRPC que o dockerode não implementa.
+
+**Consequência:** o container do app precisa do CLI + plugins compose/buildx no PATH.
+
+---
+
+## ADR-03 — Build por `docker build` (BuildKit), dockerode como fallback
+
+Testado nesta máquina em 2026-08-25:
+
+```
+$ DOCKER_BUILDKIT=0 docker build ...
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+```
+
+O builder clássico — que é exatamente o `POST /build` usado por `dockerode.buildImage()` — ainda funciona no Docker 29.7.1, mas tem prazo de validade.
+
+**Decisão:** `engine: 'cli'` é o padrão (`docker build --progress plain`). Usa BuildKit, respeita `.dockerignore` nativamente, cache moderno, mesma infra de Task do compose, e zero código de montagem de tar.
+
+O caminho `engine: 'api'` (dockerode + `tar-fs`) fica como fallback, porque não depende do CLI e dá eventos JSON estruturados. Limitações aceitas: sem cache mount, sem multi-stage paralelo, sem `--secret`.
+
+---
+
+## ADR-04 — SSE, não WebSocket
+
+Todo o streaming do MVP é unidirecional: logs, eventos do daemon, saída de build/compose, stats.
+
+**A favor:** `EventSource` nativo traz reconnect e `Last-Event-ID` de graça; `@Sse()` é first-class no Nest; socket.io custaria ~40 KB e um protocolo próprio; SSE se depura com `curl -N`; passa por qualquer proxy sem configurar upgrade.
+
+**Contra, e a mitigação:** HTTP/1.1 limita a 6 conexões por origem. O design fica em no máximo 3 SSE por aba, e logs de múltiplos containers são **agregados no servidor**.
+
+`EventSource` também não aceita headers customizados — se `AUTH_TOKEN` for ativado, a autenticação nos endpoints SSE vai por cookie `HttpOnly; SameSite=Strict`.
+
+**Revisitar quando:** entrar o terminal `exec` (fase 10). Aí sim socket.io num Gateway `/ws/exec`, que é o único caso bidirecional real.
+
+---
+
+## ADR-05 — TaskRegistry para jobs longos
+
+POST inicia e responde `202 {taskId}`; a saída sai por `GET /api/tasks/:id/stream` (SSE), com replay do ring buffer via `Last-Event-ID`.
+
+**Por quê:** um `compose up` de 3 minutos numa request síncrona morre no primeiro refresh, e o usuário fica sem saber se rodou. Com Task, a operação sobrevive ao browser e a saída pode ser reaberta depois.
+
+**Consequência de ordem:** a fase 5 (Tasks) vem **antes** de compose (7) e build (8). Construir os dois sem essa infra obriga a reescrevê-los.
+
+---
+
+## ADR-06 — Discovery de stacks por label, com registry de apoio
+
+Stacks são descobertas agrupando `listContainers({all:true})` por `com.docker.compose.project`, usando `.project.config_files` e `.project.working_dir`. Volumes e networks carregam o mesmo label, então a stack se monta mesmo com tudo parado.
+
+**O buraco:** uma stack que sofreu `down` completo não deixa recurso nenhum — some da lista.
+
+**Solução:** `StackRegistryService` persiste em `~/.dockerlocal/stacks.json` os compose files já vistos ou adicionados pelo file browser. A listagem é a união de `source: 'discovered'` e `source: 'registry'`. É o que o Docker Desktop faz.
+
+---
+
+## ADR-07 — Sem auth no MVP, com fail-safe
+
+Para uso single-user local, login é fricção sem ganho — o Docker Desktop tem o mesmo modelo. O que **realmente** protege é `OriginGuard` (anti-CSRF/DNS-rebinding) + bind em loopback, porque a ameaça real é uma aba de browser em site malicioso fazendo POST para `localhost`, não um atacante na rede.
+
+O gancho fica pronto: `AUTH_TOKEN` vazio desativa o `TokenGuard`; preenchido, exige `Bearer`.
+
+**Fail-safe obrigatório:** se alguém setar `HOST=0.0.0.0` sem `AUTH_TOKEN`, o app **recusa subir** com mensagem explícita. Isso vale mais que um login opcional que ninguém liga.
+
+---
+
+## ADR-08 — Tailwind 4 + componentes próprios
+
+As tabelas aqui têm requisitos específicos (ações por linha, estado de transição, seleção múltipla) e um `DataTable` de biblioteca costuma atrapalhar mais que ajudar. O visual "Docker Desktop" sai direto do Tailwind.
+
+Alternativa se a prioridade virar velocidade sobre acabamento: PrimeVue em modo unstyled + Tailwind. **Não misturar dois sistemas de estilo.**
+
+---
+
+## Versões travadas
+
+Verificadas no registry em 2026-08-25.
+
+| Pacote | Versão |
+|---|---|
+| `dockerode` | 5.0.1 |
+| `@types/dockerode` | 4.0.1 |
+| `@nestjs/*` | 11.2.3 |
+| `vue` | 3.5.41 |
+| `vite` | 8.2.2 |
+| `pinia` | 3.0.5 |
+| `vue-router` | 5.2.0 |
+| `tailwindcss` | 4.3.3 |
+| `@tanstack/vue-virtual` | 3.13.36 |
+| `zod` | 4.4.3 |
+| `tar-fs` | 3.1.3 |
+| `ignore` | 7.0.6 |
+| `@xterm/xterm` | 6.0.0 (fase 10) |
+| `socket.io` | 4.8.3 (fase 10) |
+
+**Aviso sobre `@types/dockerode`:** a tipagem não cobre tudo da API 1.55 e mente em pontos importantes — `container.logs()` devolve `Readable` com `follow:true` e `Buffer` sem, mas o tipo não distingue. Trate dockerode como fonte não tipada na fronteira do service e normalize para os tipos de `packages/shared`. **Nunca vaze `Dockerode.ContainerInfo` para o frontend.**
+
+## Ambiente de referência
+
+Docker Engine 29.7.1 (API 1.55) · Compose v5.4.0 · Buildx v0.36.0 · Node v24.19.0 · pnpm 11.23.0
+Socket `/var/run/docker.sock` (`root:docker`, `660`), grupo `docker` = GID **973** nesta máquina.
