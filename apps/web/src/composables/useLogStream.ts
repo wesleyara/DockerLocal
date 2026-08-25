@@ -4,12 +4,23 @@ import { createSseClient } from "@/api/sse";
 
 const MAX_LINES = 10_000;
 
-export function useLogStream(containerId: string, tail: Ref<number>) {
+export interface UseLogStreamOptions {
+  /**
+   * `false` para o stream agregado de grupo: um `log-end` identifica só o
+   * container que parou, e não deve fechar a conexão dos demais.
+   */
+  closeOnEnd?: boolean;
+}
+
+export function useLogStream(path: Ref<string>, options: UseLogStreamOptions = {}) {
+  const closeOnEnd = options.closeOnEnd ?? true;
+
   const lines = shallowRef<LogLine[]>([]);
   const connected = ref(false);
   const paused = ref(false);
   const dropped = ref(0);
   const ended = ref<LogEndEvent | null>(null);
+  const endedContainers = shallowRef<Set<string>>(new Set());
 
   let pendingBuffer: LogLine[] = [];
   let rafId: number | null = null;
@@ -29,8 +40,9 @@ export function useLogStream(containerId: string, tail: Ref<number>) {
   function connect(): void {
     disconnect();
     ended.value = null;
+    endedContainers.value = new Set();
 
-    es = createSseClient(`/containers/${containerId}/logs/stream?tail=${tail.value}`);
+    es = createSseClient(path.value);
 
     es.addEventListener("open", () => {
       connected.value = true;
@@ -47,9 +59,14 @@ export function useLogStream(containerId: string, tail: Ref<number>) {
     });
 
     es.addEventListener("log-end", (e: MessageEvent) => {
-      ended.value = JSON.parse(e.data) as LogEndEvent;
-      connected.value = false;
-      es?.close();
+      const payload = JSON.parse(e.data) as LogEndEvent;
+      if (closeOnEnd) {
+        ended.value = payload;
+        connected.value = false;
+        es?.close();
+      } else if (payload.containerId) {
+        endedContainers.value = new Set(endedContainers.value).add(payload.containerId);
+      }
     });
 
     es.addEventListener("error", () => {
@@ -71,7 +88,7 @@ export function useLogStream(containerId: string, tail: Ref<number>) {
     pendingBuffer = [];
   }
 
-  watch(tail, () => {
+  watch(path, () => {
     clear();
     connect();
   });
@@ -79,5 +96,5 @@ export function useLogStream(containerId: string, tail: Ref<number>) {
   connect();
   onUnmounted(disconnect);
 
-  return { lines, connected, paused, dropped, ended, clear };
+  return { lines, connected, paused, dropped, ended, endedContainers, clear };
 }

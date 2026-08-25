@@ -3,6 +3,7 @@ import { computed, reactive, ref } from "vue";
 import { useContainersStore } from "@/stores/containers.store";
 import { useResourcePolling } from "@/composables/useResourcePolling";
 import ContainersTable from "@/components/containers/ContainersTable.vue";
+import GroupActionButtons from "@/components/containers/GroupActionButtons.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ErrorBanner from "@/components/common/ErrorBanner.vue";
 
@@ -64,23 +65,33 @@ function runningCount(items: { state: string }[]): number {
         :key="group.project || '__ungrouped__'"
         class="overflow-hidden rounded border border-neutral-200 dark:border-neutral-800"
       >
-        <button
-          class="flex w-full items-center gap-2 bg-neutral-50 px-3 py-2 text-left text-sm font-medium hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800"
-          @click="toggleCollapsed(group.project)"
-        >
-          <svg
-            class="h-3 w-3 shrink-0 text-neutral-400 transition-transform"
-            :class="{ '-rotate-90': collapsed.has(group.project) }"
-            viewBox="0 0 24 24"
-            fill="none"
+        <div class="flex w-full items-center gap-2 bg-neutral-50 px-3 py-2 dark:bg-neutral-900">
+          <button
+            type="button"
+            class="flex items-center gap-2 text-left text-sm font-medium hover:underline"
+            @click="toggleCollapsed(group.project)"
           >
-            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span>{{ group.project || UNGROUPED_LABEL }}</span>
-          <span class="text-xs font-normal text-neutral-500">
-            {{ runningCount(group.items) }}/{{ group.items.length }} rodando
+            <svg
+              class="h-3 w-3 shrink-0 text-neutral-400 transition-transform"
+              :class="{ '-rotate-90': collapsed.has(group.project) }"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>{{ group.project || UNGROUPED_LABEL }}</span>
+            <span class="text-xs font-normal text-neutral-500">
+              {{ runningCount(group.items) }}/{{ group.items.length }} rodando
+            </span>
+          </button>
+          <span class="ml-auto">
+            <GroupActionButtons
+              :project="group.project"
+              :label="group.project || UNGROUPED_LABEL"
+              :items="group.items"
+            />
           </span>
-        </button>
+        </div>
 
         <div v-if="!collapsed.has(group.project)" class="overflow-x-auto">
           <ContainersTable :items="group.items" :pending="store.pending" :show-project-column="false" />

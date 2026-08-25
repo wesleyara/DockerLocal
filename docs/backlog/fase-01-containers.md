@@ -72,3 +72,7 @@ apps/web/src/views/ContainersView.vue
 **`@types/dockerode` mente.** A tipagem 4.0.1 não cobre tudo da API 1.55. Trate dockerode como fonte não tipada na fronteira do service e normalize para `packages/shared`. Isso importa mais na fase 2, onde `container.logs()` tem retorno condicional não tipado — mas a fronteira se estabelece aqui.
 
 **`OriginGuard` é a defesa principal do app**, mais que autenticação. A ameaça real é uma aba de browser em site malicioso fazendo `POST http://127.0.0.1:5100/api/containers/x/start` — sem CORS, um `<form>` consegue. Ver ADR-07.
+
+## Extensão pós-fase: visão e ações agrupadas por projeto
+
+Adicionado depois do critério de aceite original, a pedido: toggle "Agrupar por projeto" na `ContainersView` com seções colapsáveis (`ContainersTable.vue` extraído para reúso), e `GroupActionButtons.vue` com Logs/Iniciar/Parar/Remover em lote por grupo — reaproveitando `store.act()` por container via `Promise.allSettled`, sem endpoint de batch no backend. "Remover todos" trata 409 em duas etapas: tenta sem force, depois oferece forçar só os que colidiram. "Ver logs" do grupo usa o stream agregado da fase 2 (`GET /containers/logs/stream?ids=`), respeitando o teto de 3 SSE por aba.
