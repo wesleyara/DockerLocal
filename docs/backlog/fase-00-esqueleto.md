@@ -8,24 +8,24 @@ Parece pouco, mas prova de uma vez: socket acessível, permissão do grupo, work
 
 ## Tarefas
 
-- [ ] Remover a imagem dangling do levantamento: `docker rmi d6d1d7211054`
-- [ ] `pnpm-workspace.yaml` com `packages: ["apps/*", "packages/*"]`
-- [ ] `package.json` raiz com scripts `dev` (api + web em paralelo), `build`, `lint`
-- [ ] `packages/shared` — `package.json` com `"main": "./src/index.ts"`, sem build; `src/index.ts` exportando de `container.types.ts` (só `ContainerSummary` por ora)
-- [ ] `apps/api` via Nest CLI; `tsconfig.json` com path `@dockerlocal/shared` → `../../packages/shared/src`
-- [ ] `config/env.schema.ts` com zod: `PORT=5100`, `HOST=127.0.0.1`, `DOCKER_SOCKET=/var/run/docker.sock`, `FS_ROOTS`, `AUTH_TOKEN?`, `ALLOWED_ORIGINS`
-- [ ] `.env.example` documentando cada variável, com o comando do `DOCKER_GID`
-- [ ] `DockerModule` `@Global()` — `docker.provider.ts` com factory `new Docker({ socketPath })` sob o token `DOCKER_CLIENT`
-- [ ] Check de permissão no `onModuleInit`: `fs.access(socket, R_OK|W_OK)` → em falha, mensagem *"sem permissão no socket — verifique DOCKER_GID"*, não um `EACCES` cru cinco camadas abaixo
-- [ ] `docker.service.ts` com `ping()`, `version()`, `info()`
-- [ ] `GET /api/system/ping` → `{ ok, apiVersion, engineVersion }`
-- [ ] `main.ts` com prefixo global `/api` e `app.listen(port, host)`
-- [ ] **Fail-safe:** se `HOST=0.0.0.0` sem `AUTH_TOKEN`, recusar subir com mensagem explícita (ADR-07)
-- [ ] `apps/web` via Vite (`vue-ts`); Tailwind 4; `vue-router` com as rotas vazias das 4 abas
-- [ ] `vite.config.ts` com proxy `/api` → `http://127.0.0.1:5100`
-- [ ] `api/http.ts` — baseURL, header `X-DockerLocal: 1` em não-GET, unwrap do erro do Nest
-- [ ] `AppShell.vue` + `SideNav.vue` + `StatusBar.vue`; a StatusBar consome `/api/system/ping`
-- [ ] `.gitignore`, `.dockerignore`, `README.md` com o passo a passo de subir
+- [x] Remover a imagem dangling do levantamento: `docker rmi d6d1d7211054`
+- [x] `pnpm-workspace.yaml` com `packages: ["apps/*", "packages/*"]`
+- [x] `package.json` raiz com scripts `dev` (api + web em paralelo), `build`, `lint`
+- [x] `packages/shared` — `package.json` com `"main": "./src/index.ts"`, sem build; `src/index.ts` exportando de `container.types.ts` (só `ContainerSummary` por ora)
+- [x] `apps/api` via Nest CLI; `tsconfig.json` com path `@dockerlocal/shared` → `../../packages/shared/src`
+- [x] `config/env.schema.ts` com zod: `PORT=5100`, `HOST=127.0.0.1`, `DOCKER_SOCKET=/var/run/docker.sock`, `FS_ROOTS`, `AUTH_TOKEN?`, `ALLOWED_ORIGINS`
+- [x] `.env.example` documentando cada variável, com o comando do `DOCKER_GID`
+- [x] `DockerModule` `@Global()` — `docker.provider.ts` com factory `new Docker({ socketPath })` sob o token `DOCKER_CLIENT`
+- [x] Check de permissão no `onModuleInit`: `fs.access(socket, R_OK|W_OK)` → em falha, mensagem *"sem permissão no socket — verifique DOCKER_GID"*, não um `EACCES` cru cinco camadas abaixo
+- [x] `docker.service.ts` com `ping()`, `version()`, `info()`
+- [x] `GET /api/system/ping` → `{ ok, apiVersion, engineVersion }`
+- [x] `main.ts` com prefixo global `/api` e `app.listen(port, host)`
+- [x] **Fail-safe:** se `HOST=0.0.0.0` sem `AUTH_TOKEN`, recusar subir com mensagem explícita (ADR-07)
+- [x] `apps/web` via Vite (`vue-ts`); Tailwind 4; `vue-router` com as rotas vazias das 4 abas
+- [x] `vite.config.ts` com proxy `/api` → `http://127.0.0.1:5100`
+- [x] `api/http.ts` — baseURL, header `X-DockerLocal: 1` em não-GET, unwrap do erro do Nest
+- [x] `AppShell.vue` + `SideNav.vue` + `StatusBar.vue`; a StatusBar consome `/api/system/ping`
+- [x] `.gitignore`, `.dockerignore`, `README.md` com o passo a passo de subir
 
 ## Critério de aceite
 

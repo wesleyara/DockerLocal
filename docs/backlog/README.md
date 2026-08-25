@@ -6,8 +6,8 @@ Trabalho organizado em fases numeradas. **Comece sempre pela fase não concluíd
 
 | # | Fase | Entrega visível | Status |
 |---|---|---|---|
-| [00](fase-00-esqueleto.md) | Esqueleto | tela "Docker 29.7.1 conectado" | ☐ |
-| [01](fase-01-containers.md) | Containers | listagem + start/stop/restart/remove | ☐ |
+| [00](fase-00-esqueleto.md) | Esqueleto | tela "Docker 29.7.1 conectado" | ☑ |
+| [01](fase-01-containers.md) | Containers | listagem + start/stop/restart/remove | ☑ |
 | [02](fase-02-logs.md) | Logs | log ao vivo com virtual scroll | ☐ |
 | [03](fase-03-eventos.md) | Eventos | listas se atualizam sozinhas | ☐ |
 | [04](fase-04-images-volumes.md) | Images e Volumes | duas abas completas | ☐ |

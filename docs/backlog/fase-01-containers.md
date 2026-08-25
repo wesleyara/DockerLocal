@@ -12,26 +12,26 @@ Ver os containers da máquina numa tabela e conseguir parar, iniciar, reiniciar 
 
 ### Backend
 
-- [ ] `ContainersService.list()` — `listContainers({all})` normalizado para `ContainerSummary`; **nunca** devolva `Dockerode.ContainerInfo` cru
-- [ ] Extrair `compose` do summary a partir das labels `com.docker.compose.*`
-- [ ] `ContainersService.inspect(id)` → `GET /api/containers/:id`
-- [ ] Ações: `start`, `stop({t})`, `restart({t})`, `kill({signal})`, `pause`, `unpause`, `rename({name})`
-- [ ] `DELETE /api/containers/:id?force=&v=` e `POST /api/containers/prune`
-- [ ] `DockerExceptionFilter`: 404 → *"não encontrado (já foi removido?)"*; 409 → mensagem humana + `canForce: true`
-- [ ] `OriginGuard` — valida `Origin` contra allowlist e `Host` contra `localhost|127.0.0.1|[::1]`; exige `X-DockerLocal: 1` em não-GET
-- [ ] DTOs com `ZodValidationPipe`
+- [x] `ContainersService.list()` — `listContainers({all})` normalizado para `ContainerSummary`; **nunca** devolva `Dockerode.ContainerInfo` cru
+- [x] Extrair `compose` do summary a partir das labels `com.docker.compose.*`
+- [x] `ContainersService.inspect(id)` → `GET /api/containers/:id`
+- [x] Ações: `start`, `stop({t})`, `restart({t})`, `kill({signal})`, `pause`, `unpause`, `rename({name})`
+- [x] `DELETE /api/containers/:id?force=&v=` e `POST /api/containers/prune`
+- [x] `DockerExceptionFilter`: 404 → *"não encontrado (já foi removido?)"*; 409 → mensagem humana + `canForce: true`
+- [x] `OriginGuard` — valida `Origin` contra allowlist e `Host` contra `localhost|127.0.0.1|[::1]`; exige `X-DockerLocal: 1` em não-GET
+- [x] DTOs com `ZodValidationPipe`
 
 ### Frontend
 
-- [ ] `containers.store.ts` no padrão de resource store (`shallowRef` + `pending: Set`)
-- [ ] `ResourceTable.vue` genérico — colunas por slot, ações por linha, estado de transição
-- [ ] `StateBadge.vue` (running/exited/paused/restarting/dead) e `RelativeTime.vue`
-- [ ] `ContainersView.vue` — nome, imagem, estado, portas, uptime, projeto compose
-- [ ] `ActionButtons.vue` com spinner enquanto o id está em `pending`
-- [ ] `ConfirmDialog.vue` — remoção pede confirmação; `useConfirm()` composable
-- [ ] Erro 409 na UI oferece **"Remover mesmo assim"** (usa `canForce`), avisando que `force` numa imagem em uso deixa container órfão
-- [ ] Polling de 10 s com pausa em `visibilitychange`; refetch imediato após ação
-- [ ] `EmptyState.vue` e `ErrorBanner.vue`
+- [x] `containers.store.ts` no padrão de resource store (`shallowRef` + `pending: Set`)
+- [x] `ResourceTable.vue` genérico — colunas por slot, ações por linha, estado de transição
+- [x] `StateBadge.vue` (running/exited/paused/restarting/dead) e `RelativeTime.vue`
+- [x] `ContainersView.vue` — nome, imagem, estado, portas, uptime, projeto compose
+- [x] `ActionButtons.vue` com spinner enquanto o id está em `pending`
+- [x] `ConfirmDialog.vue` — remoção pede confirmação; `useConfirm()` composable
+- [x] Erro 409 na UI oferece **"Remover mesmo assim"** (usa `canForce`), avisando que `force` numa imagem em uso deixa container órfão
+- [x] Polling de 10 s com pausa em `visibilitychange`; refetch imediato após ação
+- [x] `EmptyState.vue` e `ErrorBanner.vue`
 
 > Skill: `vue-resource-ui` (seções 1, 2 e 6)
 
