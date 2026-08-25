@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Subir o DockerLocal como container e ter tudo funcionando igual — inclusive build e compose de projetos do host.
+Subir o DockerLocal como container e ter tudo funcionando igual — inclusive build e compose de projetos do host. Junto disso, uma CLI própria (`dockerlocal`) no estilo da CLI do `kind`: um binário que sobe/derruba o container da aplicação e ajusta configs como restart policy, sem precisar lembrar flags de `docker compose`.
 
 O passo que prova o bind espelhado é a **fase 8 repetida de dentro do container**.
 
@@ -43,11 +43,29 @@ O passo que prova o bind espelhado é a **fase 8 repetida de dentro do container
 - [ ] Bloquear remoção da própria imagem
 - [ ] Front desabilita as ações e mostra badge "este app"
 
+### CLI (`dockerlocal`) — estilo `kind`
+
+A CLI do `kind` (`kind create cluster`, `kind delete cluster`, `kind get clusters`, `kind load ...`) é a referência: um binário único, subcomandos curtos e verbos, nada de decorar flags de `docker compose -f ... --profile ...`. A nossa cobre só o ciclo de vida do **próprio** container do DockerLocal, não dos containers gerenciados pela UI (esses continuam só pela web).
+
+- [ ] Pacote `apps/cli` (ou `packages/cli`), publicado com `bin` no `package.json` — roda via `pnpm dlx dockerlocal` ou instalado global (`npm i -g`)
+- [ ] `dockerlocal up` — gera/valida `.env` (`DOCKER_GID`, bind espelhado), `docker compose up -d`; falha cedo com a mesma mensagem clara da fase 0 se faltar `DOCKER_GID`
+- [ ] `dockerlocal down` — `docker compose down`; `--volumes` remove o volume nomeado de `/data` (`stacks.json`, `DOCKER_CONFIG`)
+- [ ] `dockerlocal start` / `dockerlocal stop` — start/stop do container existente sem recriar (equivalente a `docker start|stop`, não `compose up|down`)
+- [ ] `dockerlocal restart`
+- [ ] `dockerlocal status` — rodando/parado, porta publicada, versão da imagem, restart policy atual
+- [ ] `dockerlocal logs [--follow]` — segue a saída do próprio container (não confundir com o SSE de logs da UI, que é para containers gerenciados)
+- [ ] `dockerlocal config set restart-policy <always|unless-stopped|on-failure|no>` — reescreve `restart:` no compose do app (ou aplica via `docker update` para não exigir recriar) e persiste a escolha
+- [ ] `dockerlocal config get` — mostra a config efetiva atual
+- [ ] Flags globais estilo kind: `--name` (nome do container/projeto, default fixo), `--quiet`
+- [ ] `dockerlocal --help` e `--version`
+- [ ] Mensagens de erro reusam os checks da fase 0 (socket sem permissão, Docker não encontrado) — a CLI não deve reimplementar validação, só chamar o mesmo caminho que a API usa
+
 ### README
 
 - [ ] Passo a passo: `getent group docker | cut -d: -f3` → `DOCKER_GID` no `.env`
 - [ ] Explicar por que o bind é espelhado (e por que não montar `/`)
 - [ ] Modo nativo (`pnpm dev`) vs container, e quando usar cada um
+- [ ] Referência rápida da CLI (`dockerlocal up|down|start|stop|restart|status|logs|config`)
 
 ## Critério de aceite
 
@@ -65,12 +83,26 @@ curl -s localhost:5100/api/system/ping
 - `POST /api/containers/<id-do-self>/stop` → **403** com mensagem clara
 - Sem `DOCKER_GID` no `.env` → erro claro *"sem permissão no socket"* (check da fase 0), não `EACCES` cru
 
+```bash
+dockerlocal up                              # sobe o container, equivalente ao bloco acima
+dockerlocal status                          # mostra "rodando", porta 127.0.0.1:5100, restart policy
+dockerlocal config set restart-policy always
+dockerlocal status                          # restart policy refletida sem precisar de `up` de novo
+dockerlocal stop && dockerlocal status      # "parado", container preservado (não removido)
+dockerlocal start                           # volta a rodar sem perder estado
+dockerlocal down                            # remove o container; volume nomeado sobrevive sem --volumes
+```
+
+- `dockerlocal up` numa máquina sem `DOCKER_GID` no `.env` falha com a mesma mensagem clara da fase 0, não com erro cru do compose
+- `dockerlocal config set restart-policy always` sobrevive a um reboot do host simulado (`systemctl restart docker` ou reinício da VM) — o container volta sozinho
+
 ## Arquivos previstos
 
 ```
 Dockerfile · docker-compose.yml · .dockerignore · .env.example · README.md
 apps/api/src/static/static.module.ts
 apps/api/src/docker/self-detect.service.ts
+apps/cli/                          (bin dockerlocal — up/down/start/stop/restart/status/logs/config)
 ```
 
 ## As três armadilhas

@@ -1,49 +1,18 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
-import { useVirtualizer } from "@tanstack/vue-virtual";
+import { ref } from "vue";
 import { Icon } from "@iconify/vue";
 import type { TaskLine } from "@dockerlocal/shared";
 import { stripAnsi } from "@/utils/ansi";
+import { useAutoScrollVirtualizer } from "@/composables/useAutoScrollVirtualizer";
 
 const props = defineProps<{
   lines: TaskLine[];
 }>();
 
 const scrollEl = ref<HTMLDivElement | null>(null);
-const atBottom = ref(true);
-
-const virtualizer = useVirtualizer({
-  get count() {
-    return props.lines.length;
-  },
-  getScrollElement: () => scrollEl.value,
-  estimateSize: () => 20,
-  overscan: 20,
-});
-
-function isAtBottom(): boolean {
-  const el = scrollEl.value;
-  if (!el) return true;
-  return el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-}
-
-function handleScroll(): void {
-  atBottom.value = isAtBottom();
-}
-
-function scrollToBottom(): void {
-  if (props.lines.length === 0) return;
-  virtualizer.value.scrollToIndex(props.lines.length - 1, { align: "end" });
-  atBottom.value = true;
-}
-
-watch(
+const { atBottom, virtualizer, handleScroll, scrollToBottom } = useAutoScrollVirtualizer(
+  scrollEl,
   () => props.lines.length,
-  async () => {
-    if (!atBottom.value) return;
-    await nextTick();
-    scrollToBottom();
-  },
 );
 </script>
 
