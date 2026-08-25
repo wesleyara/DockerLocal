@@ -8,9 +8,10 @@ Trabalho organizado em fases numeradas. **Comece sempre pela fase não concluíd
 |---|---|---|---|
 | [00](fase-00-esqueleto.md) | Esqueleto | tela "Docker 29.7.1 conectado" | ☑ |
 | [01](fase-01-containers.md) | Containers | listagem + start/stop/restart/remove | ☑ |
-| [02](fase-02-logs.md) | Logs | log ao vivo com virtual scroll | ☐ |
-| [03](fase-03-eventos.md) | Eventos | listas se atualizam sozinhas | ☐ |
-| [04](fase-04-images-volumes.md) | Images e Volumes | duas abas completas | ☐ |
+| [02](fase-02-logs.md) | Logs | log ao vivo com virtual scroll | ☑ |
+| [03](fase-03-eventos.md) | Eventos | listas se atualizam sozinhas | ☑ |
+| [04](fase-04-images-volumes.md) | Images e Volumes | duas abas completas | ☑ |
+| [04.1](fase-04.1-design.md) | Design e UX | ícones (Iconify), visual limpo, feedback de ação | ☐ |
 | [05](fase-05-tasks.md) | Tasks | `pull` com saída ao vivo, sobrevive a F5 | ☐ |
 | [06](fase-06-file-browser.md) | File browser | navegar e escolher compose/Dockerfile | ☐ |
 | [07](fase-07-stacks.md) | Stacks | `invest-broker` e `capp` com up/down | ☐ |

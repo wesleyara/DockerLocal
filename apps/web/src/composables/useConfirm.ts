@@ -5,6 +5,8 @@ interface ConfirmOptions {
   message: string;
   confirmLabel?: string;
   requireTypedName?: string;
+  /** false para confirmações não-destrutivas (ex.: "Entendi") — omite o ícone de alerta e o vermelho. */
+  destructive?: boolean;
 }
 
 const isOpen = ref(false);

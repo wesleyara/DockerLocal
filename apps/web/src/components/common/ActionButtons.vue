@@ -1,16 +1,33 @@
 <script setup lang="ts">
 import type { ContainerSummary } from "@dockerlocal/shared";
+import { Icon } from "@iconify/vue";
 import { useContainersStore } from "@/stores/containers.store";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { ApiError } from "@/api/http";
 
-const props = defineProps<{
-  container: ContainerSummary;
-  pending: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    container: ContainerSummary;
+    pending: boolean;
+    showLogsLink?: boolean;
+  }>(),
+  { showLogsLink: true },
+);
+
+const emit = defineEmits<{ removed: [] }>();
 
 const store = useContainersStore();
 const { confirm } = useConfirm();
+const toast = useToast();
+
+async function run(action: "start" | "stop" | "restart"): Promise<void> {
+  try {
+    await store.act(props.container.id, action);
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Falha ao executar ação");
+  }
+}
 
 async function handleRemove(): Promise<void> {
   const ok = await confirm({
@@ -22,6 +39,8 @@ async function handleRemove(): Promise<void> {
 
   try {
     await store.act(props.container.id, "remove");
+    toast.success(`Container "${props.container.name}" removido.`);
+    emit("removed");
   } catch (err) {
     if (err instanceof ApiError && err.canForce) {
       const forceOk = await confirm({
@@ -30,10 +49,16 @@ async function handleRemove(): Promise<void> {
         confirmLabel: "Remover mesmo assim",
       });
       if (forceOk) {
-        await store.act(props.container.id, "remove", { force: true });
+        try {
+          await store.act(props.container.id, "remove", { force: true });
+          toast.success(`Container "${props.container.name}" removido.`);
+          emit("removed");
+        } catch (forceErr) {
+          toast.error(forceErr instanceof Error ? forceErr.message : "Falha ao remover container");
+        }
       }
     } else {
-      throw err;
+      toast.error(err instanceof Error ? err.message : "Falha ao remover container");
     }
   }
 }
@@ -42,48 +67,51 @@ async function handleRemove(): Promise<void> {
 <template>
   <div class="flex items-center gap-1">
     <router-link
+      v-if="showLogsLink"
       :to="`/containers/${container.id}/logs`"
-      class="rounded px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+      title="Ver logs em tempo real"
+      class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
     >
+      <Icon icon="lucide:scroll-text" class="h-3.5 w-3.5" />
       Logs
     </router-link>
 
-    <svg
-      v-if="pending"
-      class="h-4 w-4 animate-spin text-neutral-400"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-    </svg>
+    <Icon v-if="pending" icon="lucide:loader-2" class="h-4 w-4 animate-spin text-slate-400" />
 
     <template v-else>
       <button
         v-if="container.state !== 'running'"
-        class="rounded px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
-        @click="store.act(container.id, 'start')"
+        title="Iniciar container"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+        @click="run('start')"
       >
+        <Icon icon="lucide:play" class="h-3.5 w-3.5" />
         Iniciar
       </button>
       <button
         v-if="container.state === 'running'"
-        class="rounded px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
-        @click="store.act(container.id, 'stop')"
+        title="Parar container — encerra os processos dentro dele"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+        @click="run('stop')"
       >
+        <Icon icon="lucide:square" class="h-3.5 w-3.5" />
         Parar
       </button>
       <button
         v-if="container.state === 'running'"
-        class="rounded px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
-        @click="store.act(container.id, 'restart')"
+        title="Reiniciar container"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+        @click="run('restart')"
       >
+        <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
         Reiniciar
       </button>
       <button
-        class="rounded px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+        title="Remover container permanentemente"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
         @click="handleRemove"
       >
+        <Icon icon="lucide:trash-2" class="h-3.5 w-3.5" />
         Remover
       </button>
     </template>

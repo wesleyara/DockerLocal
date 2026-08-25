@@ -28,7 +28,7 @@ Qualquer operação que demore e produza texto — build, `compose up`, `pull` �
 ## Comandos
 
 ```bash
-pnpm dev                      # api (5100) + web (5173) juntos
+pnpm dev                      # api (5100) + web (5551) juntos
 pnpm --filter api dev
 pnpm --filter api test
 pnpm build

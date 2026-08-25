@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
+import { Icon } from "@iconify/vue";
 import type { LogLine } from "@dockerlocal/shared";
 import LogLineRow from "./LogLine.vue";
 
@@ -82,10 +83,19 @@ defineExpose({ scrollToBottom });
 
     <button
       v-if="!atBottom"
-      class="absolute bottom-3 right-3 rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white shadow dark:bg-neutral-100 dark:text-neutral-900"
+      class="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
       @click="scrollToBottom"
     >
-      ↓ novas linhas
+      <Icon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
+      novas linhas
     </button>
+
+    <div
+      v-if="lines.length === 0"
+      class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-600"
+    >
+      <Icon icon="lucide:scroll-text" class="h-8 w-8" />
+      <p class="text-sm">Aguardando logs…</p>
+    </div>
   </div>
 </template>
