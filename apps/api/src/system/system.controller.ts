@@ -15,7 +15,7 @@ export class SystemController {
   }
 
   @Get('info')
-  async info(): Promise<{ activeLogSessions: number }> {
+  info(): { activeLogSessions: number } {
     return { activeLogSessions: this.logSessions.activeCount };
   }
 }

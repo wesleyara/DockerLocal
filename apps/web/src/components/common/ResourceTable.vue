@@ -13,7 +13,7 @@ function isPending(item: T): boolean {
 <template>
   <table class="w-full border-collapse text-sm">
     <thead>
-      <tr class="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+      <tr class="border-b border-slate-200 bg-slate-50/60 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400">
         <slot name="header" />
       </tr>
     </thead>
@@ -21,8 +21,8 @@ function isPending(item: T): boolean {
       <tr
         v-for="item in items"
         :key="rowKey(item)"
-        class="border-b border-neutral-100 transition-opacity dark:border-neutral-900"
-        :class="{ 'pointer-events-none opacity-40': isPending(item) }"
+        class="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50 dark:border-slate-900 dark:hover:bg-slate-800/40"
+        :class="{ 'pointer-events-none opacity-40 transition-opacity': isPending(item) }"
       >
         <slot name="row" :item="item" :pending="isPending(item)" />
       </tr>

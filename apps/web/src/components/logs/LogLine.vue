@@ -32,7 +32,7 @@ const labelHue = computed(() => {
   <div
     class="flex gap-2 px-3 font-mono text-xs leading-5"
     :class="[
-      line.stream === 'stderr' ? 'text-red-500 dark:text-red-400' : 'text-neutral-800 dark:text-neutral-200',
+      line.stream === 'stderr' ? 'text-red-500 dark:text-red-400' : 'text-slate-800 dark:text-slate-200',
       wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre',
     ]"
   >
@@ -43,7 +43,7 @@ const labelHue = computed(() => {
     >
       {{ containerLabel }}
     </span>
-    <span v-if="time" class="shrink-0 select-none text-neutral-500">{{ time }}</span>
+    <span v-if="time" class="shrink-0 select-none text-slate-500">{{ time }}</span>
     <span>{{ text }}</span>
   </div>
 </template>

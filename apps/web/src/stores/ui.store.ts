@@ -2,8 +2,16 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 
 export const useUiStore = defineStore("ui", () => {
-  const dockerConnected = ref<boolean | null>(null);
   const engineVersion = ref<string | null>(null);
+  const mobileNavOpen = ref(false);
 
-  return { dockerConnected, engineVersion };
+  function toggleMobileNav(): void {
+    mobileNavOpen.value = !mobileNavOpen.value;
+  }
+
+  function closeMobileNav(): void {
+    mobileNavOpen.value = false;
+  }
+
+  return { engineVersion, mobileNavOpen, toggleMobileNav, closeMobileNav };
 });

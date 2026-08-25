@@ -1,9 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PassThrough } from 'node:stream';
-import { ReplaySubject, Subject } from 'rxjs';
+import { ReplaySubject, Subject, firstValueFrom, race, timer } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 import type Docker from 'dockerode';
 import type { LogEndEvent, LogLine, LogStream } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
+import { DockerEventsService } from '../docker/docker-events.service';
 import { LineSplitter } from '../common/utils/line-splitter';
 import { RingBuffer } from '../common/utils/ring-buffer';
 
@@ -11,6 +13,9 @@ const RING_CAP = 5_000;
 const GRACE_MS = 30_000;
 const MAX_SESSIONS = 20;
 const SNAPSHOT_TAIL_DEFAULT = 500;
+// Janela para o container voltar sozinho (restart) antes de considerar a
+// parada como definitiva e encerrar o stream para o cliente.
+const REATTACH_WAIT_MS = 10_000;
 
 export interface LogSession {
   containerId: string;
@@ -21,6 +26,9 @@ export interface LogSession {
   seq: number;
   refs: number;
   closeTimer: NodeJS.Timeout | null;
+  hasTty: boolean;
+  /** true enquanto tenta religar o stream após um restart — suprime o `end$`. */
+  reattaching: boolean;
 }
 
 const TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (.*)$/;
@@ -65,13 +73,19 @@ export class LogSessionService {
   private readonly logger = new Logger(LogSessionService.name);
   private readonly sessions = new Map<string, LogSession>();
 
-  constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
+  constructor(
+    @Inject(DOCKER_CLIENT) private readonly docker: Docker,
+    private readonly dockerEvents: DockerEventsService,
+  ) {}
 
   get activeCount(): number {
     return this.sessions.size;
   }
 
-  async snapshot(containerId: string, tail = SNAPSHOT_TAIL_DEFAULT): Promise<LogLine[]> {
+  async snapshot(
+    containerId: string,
+    tail = SNAPSHOT_TAIL_DEFAULT,
+  ): Promise<LogLine[]> {
     const container = this.docker.getContainer(containerId);
     const info = await container.inspect();
     const hasTty = info.Config.Tty === true;
@@ -90,13 +104,13 @@ export class LogSessionService {
     hasTty: boolean,
     tail: number,
   ): Promise<Omit<LogLine, 'seq'>[]> {
-    const raw = (await container.logs({
+    const raw = await container.logs({
       follow: false,
       stdout: true,
       stderr: true,
       tail,
       timestamps: true,
-    })) as unknown as Buffer;
+    });
 
     const lines: Omit<LogLine, 'seq'>[] = [];
 
@@ -168,22 +182,41 @@ export class LogSessionService {
       seq: 0,
       refs: 0,
       closeTimer: null,
+      hasTty,
+      reattaching: false,
     };
 
-    const history = await this.fetchHistory(container, hasTty, SNAPSHOT_TAIL_DEFAULT);
+    const history = await this.fetchHistory(
+      container,
+      hasTty,
+      SNAPSHOT_TAIL_DEFAULT,
+    );
     for (const line of history) {
       session.buffer.push({ ...line, seq: session.seq++ });
     }
 
-    // tail: 0 — o histórico já foi seedado acima; sem isso o follow
-    // replayaria as mesmas linhas de novo, encavaladas com as ao vivo.
-    const raw = (await container.logs({
+    this.sessions.set(containerId, session);
+    await this.attachFollow(session);
+    return session;
+  }
+
+  /**
+   * Abre o stream `follow:true` e liga os canais. Reusado tanto na abertura
+   * inicial quanto na reconexão após um restart — nesse segundo caso o
+   * histórico já está no buffer, então basta religar o `raw`.
+   */
+  private async attachFollow(session: LogSession): Promise<void> {
+    const container = this.docker.getContainer(session.containerId);
+
+    // tail: 0 — o histórico já está no buffer; sem isso o follow replayaria
+    // as mesmas linhas de novo, encavaladas com as ao vivo.
+    const raw = await container.logs({
       follow: true,
       stdout: true,
       stderr: true,
       tail: 0,
       timestamps: true,
-    })) as unknown as NodeJS.ReadableStream;
+    });
     session.raw = raw;
 
     const emit = (stream: LogStream, rawLine: string) => {
@@ -198,44 +231,128 @@ export class LogSessionService {
       s.pipe(new LineSplitter()).on('data', (line: string) => emit(chan, line));
     };
 
-    if (hasTty) {
+    if (session.hasTty) {
       pipeChannel(raw, 'stdout');
     } else {
       const out = new PassThrough();
       const err = new PassThrough();
-      (container.modem as { demuxStream: (s: unknown, o: unknown, e: unknown) => void }).demuxStream(
-        raw,
-        out,
-        err,
-      );
+      (
+        container.modem as {
+          demuxStream: (s: unknown, o: unknown, e: unknown) => void;
+        }
+      ).demuxStream(raw, out, err);
       pipeChannel(out, 'stdout');
       pipeChannel(err, 'stderr');
     }
 
     raw.on('error', (err: Error) => {
-      this.logger.warn(`Stream de log de ${containerId} falhou: ${err.message}`);
-      session.end$.next({ reason: 'error', message: err.message });
-      this.destroy(containerId);
-    });
-
-    raw.on('end', () => {
-      void this.resolveEndReason(containerId).then((reason) => {
-        session.end$.next({ reason });
-        this.destroy(containerId);
+      this.logger.warn(
+        `Stream de log de ${session.containerId} falhou: ${err.message}`,
+      );
+      void this.handleStreamEnd(session, {
+        reason: 'error',
+        message: err.message,
       });
     });
 
-    this.sessions.set(containerId, session);
-    return session;
+    raw.on('end', () => {
+      void this.handleStreamEnd(session);
+    });
   }
 
-  private async resolveEndReason(containerId: string): Promise<LogEndEvent['reason']> {
-    try {
-      await this.docker.getContainer(containerId).inspect();
-      return 'container-stopped';
-    } catch {
-      return 'removed';
+  /**
+   * Um `docker restart` encerra o stream de log com o processo antigo. Em
+   * vez de tratar isso como fim definitivo, espera o container voltar
+   * (evento `start` do daemon, ou já `Running` na hora) e religa o follow —
+   * assim quem está vendo o log não perde a conexão durante o restart.
+   */
+  private async handleStreamEnd(
+    session: LogSession,
+    forcedReason?: LogEndEvent,
+  ): Promise<void> {
+    const containerId = session.containerId;
+    if (!this.sessions.has(containerId) || session.reattaching) return;
+
+    if (forcedReason) {
+      session.end$.next(forcedReason);
+      this.destroy(containerId);
+      return;
     }
+
+    let running = false;
+    let removed = false;
+    try {
+      const info = await this.docker.getContainer(containerId).inspect();
+      running = info.State.Running === true;
+    } catch {
+      removed = true;
+    }
+
+    if (removed) {
+      session.end$.next({ reason: 'removed' });
+      this.destroy(containerId);
+      return;
+    }
+
+    if (session.refs === 0) {
+      session.end$.next({ reason: 'container-stopped' });
+      this.destroy(containerId);
+      return;
+    }
+
+    if (!running) {
+      running = await this.waitForRestart(containerId);
+    }
+
+    if (!this.sessions.has(containerId)) return;
+
+    if (!running) {
+      session.end$.next({ reason: 'container-stopped' });
+      this.destroy(containerId);
+      return;
+    }
+
+    session.reattaching = true;
+    const { timestamp } = splitTimestamp(new Date().toISOString());
+    const line: LogLine = {
+      seq: session.seq++,
+      stream: 'stdout',
+      text: '--- container reiniciado, retomando logs ---',
+      timestamp,
+    };
+    session.buffer.push(line);
+    session.lines$.next(line);
+
+    try {
+      await this.attachFollow(session);
+    } catch (err) {
+      this.logger.warn(
+        `Falha ao religar log de ${containerId} após restart: ${(err as Error).message}`,
+      );
+      session.end$.next({ reason: 'container-stopped' });
+      this.destroy(containerId);
+      return;
+    } finally {
+      session.reattaching = false;
+    }
+  }
+
+  private async waitForRestart(containerId: string): Promise<boolean> {
+    const started$ = this.dockerEvents.events$.pipe(
+      filter(
+        (ev) =>
+          ev.type === 'container' &&
+          ev.id === containerId &&
+          ev.action === 'start',
+      ),
+      take(1),
+    );
+    const timeout$ = timer(REATTACH_WAIT_MS);
+
+    const result = await firstValueFrom(race(started$, timeout$));
+    // `timer` emite um número; o evento do daemon é um objeto — distinção
+    // suficiente para saber qual das duas correntes venceu a corrida.
+    return typeof result === 'object';
   }
 
   private destroy(containerId: string): void {

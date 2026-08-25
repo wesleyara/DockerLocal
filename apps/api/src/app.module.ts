@@ -3,8 +3,19 @@ import { ConfigModule } from './config/config.module';
 import { DockerModule } from './docker/docker.module';
 import { SystemModule } from './system/system.module';
 import { ContainersModule } from './containers/containers.module';
+import { ImagesModule } from './images/images.module';
+import { VolumesModule } from './volumes/volumes.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
-  imports: [ConfigModule, DockerModule, SystemModule, ContainersModule],
+  imports: [
+    ConfigModule,
+    DockerModule,
+    SystemModule,
+    ContainersModule,
+    ImagesModule,
+    VolumesModule,
+    TasksModule,
+  ],
 })
 export class AppModule {}

@@ -12,21 +12,21 @@ Deixa de existir "dado velho na tela": o polling vira rede de segurança em vez 
 
 ### Backend
 
-- [ ] `DockerEventsService` no `onModuleInit` — **um único** `docker.getEvents()` compartilhado, exposto como `Subject`; nunca um por request
-- [ ] Reconnect com backoff (1 s → 30 s) — restart do Docker derruba o stream permanentemente sem isso
-- [ ] Estado de conexão observável (`connected: boolean`) para a UI consumir
-- [ ] Normalizar o evento: `{ type, action, id, name, project, time }` — extrair `project` das labels do actor
-- [ ] `GET /api/system/events/stream` com `@Sse`, filtro `?types=container,image,volume,network`
-- [ ] Heartbeat de 20 s e headers anti-buffering
-- [ ] `onModuleDestroy` destruindo o stream
+- [x] `DockerEventsService` no `onModuleInit` — **um único** `docker.getEvents()` compartilhado, exposto como `Subject`; nunca um por request
+- [x] Reconnect com backoff (1 s → 30 s) — restart do Docker derruba o stream permanentemente sem isso
+- [x] Estado de conexão observável (`connected: boolean`) para a UI consumir
+- [x] Normalizar o evento: `{ type, action, id, name, project, time }` — extrair `project` das labels do actor
+- [x] `GET /api/system/events/stream` com `@Sse`, filtro `?types=container,image,volume,network`
+- [x] Heartbeat de 20 s e headers anti-buffering
+- [x] `onModuleDestroy` destruindo o stream
 
 ### Frontend
 
-- [ ] `events.store.ts` — conexão SSE global + estado de conexão
-- [ ] `useDockerEvents.ts` — mapeia evento → store afetada, com **refetch debounced (300 ms)**
-- [ ] Ajustar `useResourcePolling`: suspender enquanto o SSE está saudável, cair para 3 s se desconectar
-- [ ] `StatusBar` mostra "desconectado do Docker" quando o SSE cai
-- [ ] Reconectar o SSE ao voltar de `visibilityState === 'hidden'`
+- [x] `events.store.ts` — conexão SSE global + estado de conexão
+- [x] `useDockerEvents.ts` — mapeia evento → store afetada, com **refetch debounced (300 ms)**
+- [x] Ajustar `useResourcePolling`: suspender enquanto o SSE está saudável, cair para 3 s se desconectar
+- [x] `StatusBar` mostra "desconectado do Docker" quando o SSE cai
+- [x] Reconectar o SSE ao voltar de `visibilityState === 'hidden'`
 
 ## Critério de aceite
 
