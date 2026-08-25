@@ -81,3 +81,9 @@ apps/web/src/views/ContainerLogsView.vue
 ## Nota de projeto
 
 `LogViewer` e o `TaskOutput` da fase 5 são o mesmo problema. Extraia como `<StreamViewer>` com props de fonte — não duplique a virtualização.
+
+## Extensão pós-fase: stream agregado de grupo
+
+Adicionado depois do critério de aceite original, para dar suporte a "ver logs do projeto inteiro" sem furar o teto de 3 SSE por aba: `GET /containers/logs/stream?ids=a,b,c` no `LogsController`, um único `@Sse` que faz `subscribe()` em cada container e faz `merge()` dos `lines$`/`end$` de cada sessão, marcando cada linha com `containerId`. `log-end` de um container não fecha a conexão dos demais (`closeOnEnd: false` no `useLogStream`) — só marca aquele container como encerrado.
+
+**Bug real encontrado e corrigido no processo:** o replay dependia de ler `session.buffer` logo após abrir o stream `follow:true, tail:500`; como o Docker entrega esse histórico embutido de forma assíncrona (via `data` events do stream), a primeira leitura do buffer sempre vinha vazia, e as até-500 linhas históricas apareciam alguns milissegundos depois como se fossem "ao vivo" — ignorando o `tail` pedido pelo cliente. `open()` agora busca o histórico com uma chamada síncrona sem `follow` (`fetchHistory`, reaproveitada por `snapshot()`) para seedar o ring buffer *antes* de abrir o stream de acompanhamento com `tail: 0`.

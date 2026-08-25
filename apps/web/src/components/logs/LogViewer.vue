@@ -8,6 +8,7 @@ const props = defineProps<{
   lines: LogLine[];
   showTimestamps: boolean;
   wrap: boolean;
+  resolveContainerLabel?: (containerId: string) => string;
 }>();
 
 const scrollEl = ref<HTMLDivElement | null>(null);
@@ -65,7 +66,16 @@ defineExpose({ scrollToBottom });
             transform: `translateY(${row.start}px)`,
           }"
         >
-          <LogLineRow :line="lines[row.index]" :show-timestamps="showTimestamps" :wrap="wrap" />
+          <LogLineRow
+            :line="lines[row.index]"
+            :show-timestamps="showTimestamps"
+            :wrap="wrap"
+            :container-label="
+              lines[row.index].containerId && resolveContainerLabel
+                ? resolveContainerLabel(lines[row.index].containerId!)
+                : undefined
+            "
+          />
         </div>
       </div>
     </div>

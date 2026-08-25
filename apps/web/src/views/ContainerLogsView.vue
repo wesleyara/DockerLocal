@@ -19,7 +19,8 @@ const showTimestamps = ref(false);
 const wrap = ref(false);
 const tail = ref(500);
 
-const { lines, connected, paused, dropped, ended, clear } = useLogStream(containerId, tail);
+const path = computed(() => `/containers/${containerId}/logs/stream?tail=${tail.value}`);
+const { lines, connected, paused, dropped, ended, clear } = useLogStream(path);
 
 const filteredLines = computed(() => {
   const needle = filter.value.trim().toLowerCase();

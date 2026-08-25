@@ -12,7 +12,7 @@ const GRACE_MS = 30_000;
 const MAX_SESSIONS = 20;
 const SNAPSHOT_TAIL_DEFAULT = 500;
 
-interface LogSession {
+export interface LogSession {
   containerId: string;
   raw: NodeJS.ReadableStream;
   lines$: Subject<LogLine>;
@@ -75,7 +75,21 @@ export class LogSessionService {
     const container = this.docker.getContainer(containerId);
     const info = await container.inspect();
     const hasTty = info.Config.Tty === true;
+    const lines = await this.fetchHistory(container, hasTty, tail);
+    return lines.map((line, seq) => ({ ...line, seq }));
+  }
 
+  /**
+   * Busca o histórico via chamada sem `follow` — sem isso, o replay
+   * dependeria do próprio `tail` embutido no stream `follow:true`, que
+   * chega em pedaços assíncronos e é indistinguível de linhas ao vivo
+   * (a primeira leitura do buffer, logo após abrir a sessão, vem vazia).
+   */
+  private async fetchHistory(
+    container: Docker.Container,
+    hasTty: boolean,
+    tail: number,
+  ): Promise<Omit<LogLine, 'seq'>[]> {
     const raw = (await container.logs({
       follow: false,
       stdout: true,
@@ -84,19 +98,18 @@ export class LogSessionService {
       timestamps: true,
     })) as unknown as Buffer;
 
-    const lines: LogLine[] = [];
-    let seq = 0;
+    const lines: Omit<LogLine, 'seq'>[] = [];
 
     if (hasTty) {
       for (const rawLine of toLines(raw.toString('utf8'))) {
         const { timestamp, text } = splitTimestamp(rawLine);
-        lines.push({ seq: seq++, stream: 'stdout', text, timestamp });
+        lines.push({ stream: 'stdout', text, timestamp });
       }
     } else {
       for (const frame of demuxBuffer(raw)) {
         for (const rawLine of toLines(frame.text)) {
           const { timestamp, text } = splitTimestamp(rawLine);
-          lines.push({ seq: seq++, stream: frame.stream, text, timestamp });
+          lines.push({ stream: frame.stream, text, timestamp });
         }
       }
     }
@@ -146,17 +159,9 @@ export class LogSessionService {
     const info = await container.inspect();
     const hasTty = info.Config.Tty === true;
 
-    const raw = (await container.logs({
-      follow: true,
-      stdout: true,
-      stderr: true,
-      tail: SNAPSHOT_TAIL_DEFAULT,
-      timestamps: true,
-    })) as unknown as NodeJS.ReadableStream;
-
     const session: LogSession = {
       containerId,
-      raw,
+      raw: undefined as unknown as NodeJS.ReadableStream,
       lines$: new Subject<LogLine>(),
       end$: new ReplaySubject<LogEndEvent>(1),
       buffer: new RingBuffer<LogLine>(RING_CAP),
@@ -164,6 +169,22 @@ export class LogSessionService {
       refs: 0,
       closeTimer: null,
     };
+
+    const history = await this.fetchHistory(container, hasTty, SNAPSHOT_TAIL_DEFAULT);
+    for (const line of history) {
+      session.buffer.push({ ...line, seq: session.seq++ });
+    }
+
+    // tail: 0 — o histórico já foi seedado acima; sem isso o follow
+    // replayaria as mesmas linhas de novo, encavaladas com as ao vivo.
+    const raw = (await container.logs({
+      follow: true,
+      stdout: true,
+      stderr: true,
+      tail: 0,
+      timestamps: true,
+    })) as unknown as NodeJS.ReadableStream;
+    session.raw = raw;
 
     const emit = (stream: LogStream, rawLine: string) => {
       const { timestamp, text } = splitTimestamp(rawLine);
