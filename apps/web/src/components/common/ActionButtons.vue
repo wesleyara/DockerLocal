@@ -41,6 +41,13 @@ async function handleRemove(): Promise<void> {
 
 <template>
   <div class="flex items-center gap-1">
+    <router-link
+      :to="`/containers/${container.id}/logs`"
+      class="rounded px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+    >
+      Logs
+    </router-link>
+
     <svg
       v-if="pending"
       class="h-4 w-4 animate-spin text-neutral-400"

@@ -12,31 +12,31 @@ Clicar num container e ver o log correndo ao vivo, com filtro, pausa e scroll fl
 
 ### Backend — a parte delicada
 
-- [ ] `common/utils/line-splitter.ts` — Transform que guarda a linha parcial entre chunks e **emite o resto no `_flush`** (senão a última linha some)
-- [ ] `common/utils/ring-buffer.ts` com cap configurável
-- [ ] `LogSessionService.openStream()` — **inspecionar `Config.Tty` e ramificar**: com TTY sem demux, sem TTY com `modem.demuxStream`
-- [ ] `setEncoding('utf8')` antes de qualquer split (acentos quebram se o chunk cortar no meio de um multibyte)
-- [ ] Refcount por container — dois browsers no mesmo container = 1 stream no daemon
-- [ ] Grace period de 30 s antes de destruir a sessão, para que um F5 não derrube o stream
-- [ ] Cap global de ~20 sessões
-- [ ] Ring buffer de 5.000 linhas por sessão, para replay imediato ao abrir
-- [ ] Batching com `bufferTime(100)` + contador `dropped`
-- [ ] `GET /api/containers/:id/logs` — snapshot sem follow
-- [ ] `GET /api/containers/:id/logs/stream` com `@Sse` — headers anti-buffering, heartbeat de 20 s, **`finalize()` liberando a sessão**
-- [ ] `event: log-end` com `reason: 'container-stopped'|'removed'|'error'`
-- [ ] Expor `activeLogSessions` em `/api/system/info`
-- [ ] Confirmar que `compression` **não** está registrado no Express
+- [x] `common/utils/line-splitter.ts` — Transform que guarda a linha parcial entre chunks e **emite o resto no `_flush`** (senão a última linha some)
+- [x] `common/utils/ring-buffer.ts` com cap configurável
+- [x] `LogSessionService.openStream()` — **inspecionar `Config.Tty` e ramificar**: com TTY sem demux, sem TTY com `modem.demuxStream`
+- [x] `setEncoding('utf8')` antes de qualquer split (acentos quebram se o chunk cortar no meio de um multibyte)
+- [x] Refcount por container — dois browsers no mesmo container = 1 stream no daemon
+- [x] Grace period de 30 s antes de destruir a sessão, para que um F5 não derrube o stream
+- [x] Cap global de ~20 sessões
+- [x] Ring buffer de 5.000 linhas por sessão, para replay imediato ao abrir
+- [x] Batching com `bufferTime(100)` + contador `dropped`
+- [x] `GET /api/containers/:id/logs` — snapshot sem follow
+- [x] `GET /api/containers/:id/logs/stream` com `@Sse` — headers anti-buffering, heartbeat de 20 s, **`finalize()` liberando a sessão**
+- [x] `event: log-end` com `reason: 'container-stopped'|'removed'|'error'`
+- [x] Expor `activeLogSessions` em `/api/system/info`
+- [x] Confirmar que `compression` **não** está registrado no Express
 
 ### Frontend
 
-- [ ] `api/sse.ts` — `createSseClient` com reconnect e `Last-Event-ID`
-- [ ] `useLogStream.ts` — buffer não reativo + commit por `requestAnimationFrame`
-- [ ] `LogViewer.vue` com `@tanstack/vue-virtual`, altura fixa quando `wrap = off`
-- [ ] Pin to bottom: autoscroll até o usuário rolar acima; botão "↓ novas linhas"
-- [ ] `LogToolbar.vue` — filtro de texto, toggle stdout/stderr, timestamps, wrap, pausa, limpar, baixar `.log`, `tail` inicial (100/500/2000)
-- [ ] Fechar o `EventSource` ao receber `log-end` (senão reconecta em loop contra 404) e no `onUnmounted`
-- [ ] Strip de escapes ANSI
-- [ ] `ContainerLogsView.vue` (rota `/containers/:id/logs`)
+- [x] `api/sse.ts` — `createSseClient` com reconnect e `Last-Event-ID`
+- [x] `useLogStream.ts` — buffer não reativo + commit por `requestAnimationFrame`
+- [x] `LogViewer.vue` com `@tanstack/vue-virtual`, altura fixa quando `wrap = off`
+- [x] Pin to bottom: autoscroll até o usuário rolar acima; botão "↓ novas linhas"
+- [x] `LogToolbar.vue` — filtro de texto, toggle stdout/stderr, timestamps, wrap, pausa, limpar, baixar `.log`, `tail` inicial (100/500/2000)
+- [x] Fechar o `EventSource` ao receber `log-end` (senão reconecta em loop contra 404) e no `onUnmounted`
+- [x] Strip de escapes ANSI
+- [x] `ContainerLogsView.vue` (rota `/containers/:id/logs`)
 
 ## Critério de aceite
 

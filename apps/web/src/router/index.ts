@@ -10,6 +10,11 @@ const router = createRouter({
       component: () => import("@/views/ContainersView.vue"),
     },
     {
+      path: "/containers/:id/logs",
+      name: "container-logs",
+      component: () => import("@/views/ContainerLogsView.vue"),
+    },
+    {
       path: "/images",
       name: "images",
       component: () => import("@/views/ImagesView.vue"),
