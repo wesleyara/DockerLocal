@@ -7,6 +7,7 @@ interface ProgressEvent {
   id?: string;
   status?: string;
   progress?: string;
+  progressDetail?: { current?: number; total?: number };
   error?: string;
   errorDetail?: { message: string };
 }
@@ -66,7 +67,18 @@ export class ImagePullService {
               const text = [event.id, event.status, event.progress]
                 .filter(Boolean)
                 .join(' ');
-              handle.emit('stdout', text);
+              handle.emit(
+                'stdout',
+                text,
+                event.id
+                  ? {
+                      id: event.id,
+                      status: event.status,
+                      current: event.progressDetail?.current,
+                      total: event.progressDetail?.total,
+                    }
+                  : undefined,
+              );
             }
           },
         );

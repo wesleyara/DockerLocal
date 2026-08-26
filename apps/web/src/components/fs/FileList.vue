@@ -37,6 +37,12 @@ function entryMatchesMode(entry: FsEntry): boolean {
   return entry.isDockerfile;
 }
 
+// Pastas sempre navegáveis; arquivos só aparecem se forem do tipo que o modo procura —
+// evita listar node_modules, src, CLAUDE.md etc. junto do Dockerfile/compose.
+const visibleEntries = computed(() =>
+  props.entries.filter((entry) => entry.isDirectory || entryMatchesMode(entry)),
+);
+
 function iconFor(entry: FsEntry): string {
   if (entry.isDirectory) return "lucide:folder";
   if (entry.isCompose) return "lucide:file-cog";
@@ -70,11 +76,11 @@ function onEntryClick(entry: FsEntry): void {
     </nav>
 
     <ul class="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-app-md border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
-      <li v-if="entries.length === 0" class="px-3 py-6 text-center text-xs text-slate-500">
+      <li v-if="visibleEntries.length === 0" class="px-3 py-6 text-center text-xs text-slate-500">
         Pasta vazia.
       </li>
       <li
-        v-for="entry in entries"
+        v-for="entry in visibleEntries"
         :key="entry.path"
         class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
         :class="{
