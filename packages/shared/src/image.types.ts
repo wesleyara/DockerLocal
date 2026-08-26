@@ -11,3 +11,15 @@ export interface ImageSummary {
   /** Nomes dos containers (parados ou rodando) que usam esta imagem. */
   usedBy: string[];
 }
+
+export type ImageBuildEngine = "cli" | "api";
+
+export interface BuildImageBody {
+  contextPath: string;
+  dockerfile: string;
+  tags: string[];
+  buildArgs?: Record<string, string>;
+  noCache?: boolean;
+  target?: string;
+  engine?: ImageBuildEngine;
+}

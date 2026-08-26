@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { Icon } from "@iconify/vue";
 import { useStacksStore } from "@/stores/stacks.store";
 import { useResourcePolling } from "@/composables/useResourcePolling";
@@ -6,8 +7,10 @@ import StackCard from "@/components/stacks/StackCard.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ErrorBanner from "@/components/common/ErrorBanner.vue";
 import TableSkeleton from "@/components/common/TableSkeleton.vue";
+import CreateStackDialog from "./CreateStackDialog.vue";
 
 const store = useStacksStore();
+const createDialogOpen = ref(false);
 
 useResourcePolling(() => store.fetch(true));
 </script>
@@ -19,7 +22,17 @@ useResourcePolling(() => store.fetch(true));
         <Icon icon="lucide:boxes" class="h-4.5 w-4.5 text-slate-400" />
         Stacks
       </h1>
-      <span class="text-xs text-slate-500">{{ store.items.length }} no total</span>
+      <div class="flex items-center gap-3">
+        <button
+          class="flex items-center gap-1.5 rounded-app-sm bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)]"
+          title="Subir uma stack a partir de um compose file"
+          @click="createDialogOpen = true"
+        >
+          <Icon icon="lucide:plus" class="h-3.5 w-3.5" />
+          Nova stack
+        </button>
+        <span class="text-xs text-slate-500">{{ store.items.length }} no total</span>
+      </div>
     </div>
 
     <ErrorBanner v-if="store.error" :message="store.error" />
@@ -39,5 +52,7 @@ useResourcePolling(() => store.fetch(true));
     <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <StackCard v-for="stack in store.items" :key="stack.project" :stack="stack" />
     </div>
+
+    <CreateStackDialog v-model:open="createDialogOpen" />
   </div>
 </template>

@@ -50,7 +50,9 @@ export class StackDiscoveryService {
     ]);
 
     const summaries = await Promise.all(
-      [...projects].map((project) => this.summarize(project, groups.get(project))),
+      [...projects].map((project) =>
+        this.summarize(project, groups.get(project)),
+      ),
     );
     return summaries.sort((a, b) => a.project.localeCompare(b.project));
   }
@@ -116,6 +118,15 @@ export class StackDiscoveryService {
 
   removeFromRegistry(project: string): boolean {
     return this.registry.remove(project);
+  }
+
+  /** Registra a stack antes do `up`, para ela aparecer mesmo se o `up` falhar. */
+  registerFromFile(
+    project: string,
+    workingDir: string,
+    configFiles: string[],
+  ): void {
+    this.registry.upsert({ project, workingDir, configFiles });
   }
 
   private async rawGroups(): Promise<Map<string, RawGroup>> {
@@ -194,7 +205,9 @@ export class StackDiscoveryService {
 
     const fileExists =
       configFiles.length > 0 &&
-      (await Promise.all(configFiles.map((f) => this.exists(f)))).every(Boolean);
+      (await Promise.all(configFiles.map((f) => this.exists(f)))).every(
+        Boolean,
+      );
 
     const hasDiscoveredResources =
       !!group &&

@@ -14,11 +14,17 @@ import { OriginGuard } from '../common/guards/origin.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { ImagesService } from './images.service';
 import { ImagePullService } from './image-pull.service';
+import { ImageBuildCliService } from './image-build-cli.service';
+import { ImageBuildService } from './image-build.service';
 import { listImagesQuerySchema } from './dto/list-images.dto';
 import { removeImageQuerySchema } from './dto/remove-image.dto';
 import { tagImageBodySchema } from './dto/tag-image.dto';
 import { pruneImagesBodySchema } from './dto/prune-images.dto';
 import { pullImageBodySchema, type PullImageBody } from './dto/pull-image.dto';
+import {
+  buildImageBodySchema,
+  type BuildImageBody,
+} from './dto/build-image.dto';
 
 @UseGuards(OriginGuard)
 @Controller('images')
@@ -26,6 +32,8 @@ export class ImagesController {
   constructor(
     private readonly imagesService: ImagesService,
     private readonly imagePull: ImagePullService,
+    private readonly imageBuildCli: ImageBuildCliService,
+    private readonly imageBuild: ImageBuildService,
   ) {}
 
   @Post('pull')
@@ -35,6 +43,18 @@ export class ImagesController {
   } {
     const { ref } = body as PullImageBody;
     return { taskId: this.imagePull.start(ref) };
+  }
+
+  @Post('build')
+  @HttpCode(202)
+  async build(
+    @Body(new ZodValidationPipe(buildImageBodySchema)) body: BuildImageBody,
+  ): Promise<{ taskId: string }> {
+    const taskId =
+      body.engine === 'api'
+        ? await this.imageBuild.start(body)
+        : await this.imageBuildCli.start(body);
+    return { taskId };
   }
 
   @Get()

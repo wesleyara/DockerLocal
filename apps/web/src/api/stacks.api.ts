@@ -3,6 +3,7 @@ import type {
   ComposeDownBody,
   ComposeServicesBody,
   ComposeUpBody,
+  CreateStackFromFileBody,
   StackDetail,
   StackSummary,
 } from "@dockerlocal/shared";
@@ -12,6 +13,9 @@ export const stacksApi = {
   list: () => http.get<StackSummary[]>("/stacks"),
   detail: (project: string) => http.get<StackDetail>(`/stacks/${project}`),
   config: (project: string) => http.get<unknown>(`/stacks/${project}/config`),
+
+  fromFile: (body: CreateStackFromFileBody) =>
+    http.post<{ taskId: string }>("/stacks/from-file", body),
 
   up: (project: string, body: ComposeUpBody = {}) =>
     http.post<{ taskId: string }>(`/stacks/${project}/up`, body),
