@@ -43,6 +43,17 @@ O passo que prova o bind espelhado é a **fase 8 repetida de dentro do container
 - [ ] Bloquear remoção da própria imagem
 - [ ] Front desabilita as ações e mostra badge "este app"
 
+### Configuração do file browser pela UI
+
+Hoje `FS_ROOTS` só é lido do `.env` no boot (`SettingsView.vue` é read-only, fase 6). Empacotado em container, editar `.env` e reiniciar para adicionar uma raiz é atrito — vira o momento certo de tornar isso editável em runtime, direto na UI.
+
+- [ ] `SettingsView.vue` ganha formulário para adicionar/remover raiz (não só listar)
+- [ ] `POST /api/fs/roots` — adiciona uma raiz nova; valida com `realpath` e as mesmas regras do `PathSafetyService` da fase 6 (rejeita path relativo, symlink pra fora, etc.)
+- [ ] `DELETE /api/fs/roots` — remove uma raiz
+- [ ] Persistir em `~/.dockerlocal/config.json` (mesmo padrão do `stacks.json` da fase 7), não só no `.env` — o `.env` é fixo no boot, a UI precisa alterar em runtime sem reiniciar o processo
+- [ ] `PathSafetyService` recarrega as raízes quando o config muda, sem exigir restart da API
+- [ ] Raiz adicionada pela UI dentro de um container: mostrar aviso claro se o caminho não existir no bind espelhado — mesmo problema de `HOME`/`~` descrito em "As três armadilhas"
+
 ### CLI (`dockerlocal`) — estilo `kind`
 
 A CLI do `kind` (`kind create cluster`, `kind delete cluster`, `kind get clusters`, `kind load ...`) é a referência: um binário único, subcomandos curtos e verbos, nada de decorar flags de `docker compose -f ... --profile ...`. A nossa cobre só o ciclo de vida do **próprio** container do DockerLocal, não dos containers gerenciados pela UI (esses continuam só pela web).
