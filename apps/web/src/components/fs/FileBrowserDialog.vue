@@ -128,6 +128,14 @@ function cancel(): void {
         <Icon icon="lucide:loader-circle" class="h-5 w-5 animate-spin" />
       </div>
 
+      <div v-else-if="roots.length === 0" class="flex flex-col items-center gap-1.5 py-10 text-center text-slate-500 dark:text-slate-400">
+        <Icon icon="lucide:folder-x" class="h-6 w-6 text-slate-300 dark:text-slate-600" />
+        <p class="text-sm">Nenhuma raiz configurada ainda — não há por onde navegar.</p>
+        <p class="max-w-sm text-xs">
+          Cancele e digite o caminho absoluto da pasta diretamente no campo de texto para adicionar a primeira raiz.
+        </p>
+      </div>
+
       <FileList
         v-else-if="currentPath && currentRoot"
         :path="currentPath"

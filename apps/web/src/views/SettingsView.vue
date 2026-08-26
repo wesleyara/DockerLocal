@@ -164,7 +164,7 @@ onMounted(() => {
           <input
             v-model="newRootPath"
             type="text"
-            placeholder="/home/wesley/Documents/outra-pasta"
+            placeholder="/caminho/para/outra-pasta"
             class="min-w-0 flex-1 rounded-app-sm border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           />
           <button
