@@ -5,6 +5,7 @@ import type { TaskStatus } from "@dockerlocal/shared";
 import { useTasksStore } from "@/stores/tasks.store";
 import { useToast } from "@/composables/useToast";
 import TaskOutput from "./TaskOutput.vue";
+import PullProgress from "./PullProgress.vue";
 
 const store = useTasksStore();
 const toast = useToast();
@@ -76,7 +77,8 @@ async function handleCancel(): Promise<void> {
           {{ task.message }}
         </p>
 
-        <TaskOutput :lines="lines" />
+        <PullProgress v-if="task?.kind === 'image-pull'" :lines="lines" />
+        <TaskOutput v-else :lines="lines" />
       </div>
     </div>
   </Transition>

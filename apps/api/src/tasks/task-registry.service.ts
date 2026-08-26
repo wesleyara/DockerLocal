@@ -1,7 +1,12 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { ReplaySubject, Subject } from 'rxjs';
-import type { Task, TaskLine, TaskStatus } from '@dockerlocal/shared';
+import type {
+  Task,
+  TaskLine,
+  TaskLineProgress,
+  TaskStatus,
+} from '@dockerlocal/shared';
 import { RingBuffer } from '../common/utils/ring-buffer';
 
 const RING_CAP = 5_000;
@@ -19,7 +24,11 @@ export interface TaskRecord {
 export interface TaskHandle {
   id: string;
   signal: AbortSignal;
-  emit(stream: 'stdout' | 'stderr', text: string): void;
+  emit(
+    stream: 'stdout' | 'stderr',
+    text: string,
+    progress?: TaskLineProgress,
+  ): void;
   succeed(meta?: Record<string, unknown>): void;
   fail(message: string): void;
 }
@@ -70,7 +79,7 @@ export class TaskRegistryService implements OnModuleDestroy {
     return {
       id,
       signal: this.tasks.get(id)!.controller.signal,
-      emit: (stream, text) => this.emit(id, stream, text),
+      emit: (stream, text, progress) => this.emit(id, stream, text, progress),
       succeed: (m) => this.finish(id, 'succeeded', { meta: m }),
       fail: (message) => this.finish(id, 'failed', { message }),
     };
@@ -99,10 +108,15 @@ export class TaskRegistryService implements OnModuleDestroy {
     return true;
   }
 
-  private emit(id: string, stream: 'stdout' | 'stderr', text: string): void {
+  private emit(
+    id: string,
+    stream: 'stdout' | 'stderr',
+    text: string,
+    progress?: TaskLineProgress,
+  ): void {
     const record = this.tasks.get(id);
     if (!record) return;
-    const line: TaskLine = { seq: record.seq++, stream, text };
+    const line: TaskLine = { seq: record.seq++, stream, text, progress };
     record.buffer.push(line);
     record.lines$.next(line);
   }

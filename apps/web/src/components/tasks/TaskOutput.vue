@@ -35,7 +35,7 @@ const { atBottom, virtualizer, handleScroll, scrollToBottom } = useAutoScrollVir
             class="whitespace-pre px-3 font-mono text-xs leading-5"
             :class="
               lines[row.index].stream === 'stderr'
-                ? 'text-red-500 dark:text-red-400'
+                ? 'text-slate-500 dark:text-slate-400'
                 : 'text-slate-800 dark:text-slate-200'
             "
           >
