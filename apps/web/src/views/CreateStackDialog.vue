@@ -22,6 +22,7 @@ const upNow = ref(true);
 const submitting = ref(false);
 const previewContent = ref<string | null>(null);
 const previewTruncated = ref(false);
+const envAutoDetected = ref(false);
 
 function basenameOf(path: string): string {
   const idx = path.lastIndexOf("/");
@@ -39,6 +40,7 @@ watch(open, (isOpen) => {
   envFile.value = null;
   upNow.value = true;
   previewContent.value = null;
+  envAutoDetected.value = false;
 });
 
 async function pickComposeFile(): Promise<void> {
@@ -59,15 +61,34 @@ async function pickComposeFile(): Promise<void> {
   } catch {
     previewContent.value = null;
   }
+
+  await detectEnvFile(dirnameOf(path));
+}
+
+async function detectEnvFile(dir: string): Promise<void> {
+  try {
+    const result = await fsApi.list(dir, true);
+    const hasEnv = result.entries.some((entry) => !entry.isDirectory && entry.name === ".env");
+    if (hasEnv) {
+      envFile.value = `${dir}/.env`;
+      envAutoDetected.value = true;
+    }
+  } catch {
+    // pasta não listável (fora das raízes permitidas, etc.) — segue sem sugestão automática
+  }
 }
 
 async function pickEnvFile(): Promise<void> {
   const path = await fileBrowser.open({ mode: "dir", title: "Escolha a pasta do .env" });
-  if (path) envFile.value = `${path}/.env`;
+  if (path) {
+    envFile.value = `${path}/.env`;
+    envAutoDetected.value = false;
+  }
 }
 
 function clearEnvFile(): void {
   envFile.value = null;
+  envAutoDetected.value = false;
 }
 
 const canSubmit = computed(() => !!composeFilePath.value && !submitting.value);
@@ -168,6 +189,9 @@ async function submit(): Promise<void> {
             <Icon icon="lucide:x" class="h-3.5 w-3.5" />
           </button>
         </div>
+        <p v-if="envAutoDetected" class="text-xs text-slate-400">
+          Detectado automaticamente na mesma pasta do compose file.
+        </p>
       </div>
 
       <label class="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
