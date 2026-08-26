@@ -5,6 +5,7 @@ import { tasksApi } from "@/api/tasks.api";
 import { createSseClient } from "@/api/sse";
 import { useToast } from "@/composables/useToast";
 import { useImagesStore } from "./images.store";
+import { useStacksStore } from "./stacks.store";
 
 const MAX_LINES = 10_000;
 
@@ -76,6 +77,7 @@ export const useTasksStore = defineStore("tasks", () => {
     if (task.status === "succeeded") {
       toast.success(`${task.label} concluída.`);
       if (task.kind === "image-pull") void useImagesStore().fetch(true);
+      if (task.kind.startsWith("compose-")) void useStacksStore().fetch(true);
     } else if (task.status === "failed") {
       toast.error(task.message ?? `${task.label} falhou.`);
     } else if (task.status === "cancelled") {

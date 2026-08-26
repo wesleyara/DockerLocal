@@ -35,6 +35,11 @@ const router = createRouter({
       component: () => import("@/views/StacksView.vue"),
     },
     {
+      path: "/stacks/:project",
+      name: "stack-detail",
+      component: () => import("@/views/StackDetailView.vue"),
+    },
+    {
       path: "/settings",
       name: "settings",
       component: () => import("@/views/SettingsView.vue"),

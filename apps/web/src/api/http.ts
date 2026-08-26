@@ -4,16 +4,19 @@ export interface ApiErrorPayload {
   statusCode: number;
   message: string;
   canForce?: boolean;
+  taskId?: string;
 }
 
 export class ApiError extends Error {
   statusCode: number;
   canForce: boolean;
+  taskId?: string;
 
   constructor(payload: ApiErrorPayload) {
     super(payload.message);
     this.statusCode = payload.statusCode;
     this.canForce = payload.canForce ?? false;
+    this.taskId = payload.taskId;
   }
 }
 

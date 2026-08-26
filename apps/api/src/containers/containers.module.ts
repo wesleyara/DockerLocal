@@ -7,6 +7,6 @@ import { LogSessionService } from './log-session.service';
 @Module({
   controllers: [ContainersController, LogsController],
   providers: [ContainersService, LogSessionService],
-  exports: [LogSessionService],
+  exports: [LogSessionService, ContainersService],
 })
 export class ContainersModule {}

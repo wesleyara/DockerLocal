@@ -5,3 +5,4 @@ export * from "./image.types";
 export * from "./volume.types";
 export * from "./task.types";
 export * from "./fs.types";
+export * from "./stack.types";
