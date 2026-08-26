@@ -88,6 +88,8 @@ O gancho fica pronto: `AUTH_TOKEN` vazio desativa o `TokenGuard`; preenchido, ex
 
 **Fail-safe obrigatório:** se alguém setar `HOST=0.0.0.0` sem `AUTH_TOKEN`, o app **recusa subir** com mensagem explícita. Isso vale mais que um login opcional que ninguém liga.
 
+**Exceção da fase 9:** dentro do próprio container do app, o processo precisa escutar em `0.0.0.0` — publicar porta (`docker run -p`/compose) encaminha tráfego pra interface do container, nunca pro loopback interno dele. A proteção nesse caso vem de fora: `docker-compose.yml` publica só em `127.0.0.1`. O escape hatch é a env `DOCKER_LOCAL_CONTAINER=1`, setada **só** no `Dockerfile` do próprio app (nunca à mão) — ver `env.schema.ts`.
+
 ---
 
 ## ADR-08 — Tailwind 4 + componentes próprios
@@ -95,6 +97,45 @@ O gancho fica pronto: `AUTH_TOKEN` vazio desativa o `TokenGuard`; preenchido, ex
 As tabelas aqui têm requisitos específicos (ações por linha, estado de transição, seleção múltipla) e um `DataTable` de biblioteca costuma atrapalhar mais que ajudar. O visual "Docker Desktop" sai direto do Tailwind.
 
 Alternativa se a prioridade virar velocidade sobre acabamento: PrimeVue em modo unstyled + Tailwind. **Não misturar dois sistemas de estilo.**
+
+---
+
+## ADR-09 — Auto-detecção do próprio container, sem depender de uma única fonte
+
+Rodando empacotado, o DockerLocal aparece na própria lista de containers — sem tratamento especial, um `down` na própria stack (ou um `stop` clicado sem querer) derruba o app no meio do request.
+
+`SelfDetectService` (`apps/api/src/docker/self-detect.service.ts`) tenta, nessa ordem: `/proc/self/cgroup` (funciona mesmo com `HOSTNAME` customizado) → `HOSTNAME` (Docker usa o id curto do container por padrão) → varredura pela label `com.dockerlocal.self=true` (cobre o caso de cgroup v2 sem o path esperado *e* hostname customizado ao mesmo tempo). Três fontes porque cada uma sozinha tem um jeito plausível de falhar; fora de container (dev nativo via `pnpm dev`), nenhuma bate e tudo segue funcionando normal, com `isSelf` sempre `false`.
+
+**Consequência:** `stop`/`restart`/`kill`/`remove` de container, `down`/`stop`/`restart` de stack e `remove` de imagem checam `isSelf` e voltam **403** em vez de deixar o request derrubar o processo que está respondendo a ele. O front espelha isso desabilitando os botões, mas o 403 no backend é quem garante — nunca confie só na UI.
+
+---
+
+## ADR-10 — Raízes do file browser: `.env` fixo + camada editável em runtime
+
+`FS_ROOTS` no `.env` só é lido no boot — trocar exige editar o arquivo e reiniciar o processo. Empacotado em container, isso é fricção real (editar `.env` e recriar o container só pra abrir uma pasta nova).
+
+**Decisão:** duas camadas. `FS_ROOTS` continua a base fixa, resolvida uma vez no boot. Raízes adicionadas pela UI (`POST /api/fs/roots`) vão pro `FsConfigService`, que persiste em `~/.dockerlocal/config.json` — mesmo padrão do `StackRegistryService` da fase 7 — e o `PathSafetyService` lê as duas listas em toda validação de path, sem cache, então uma raiz nova vale imediatamente sem reiniciar nada. Só raízes da camada runtime podem ser removidas pela API; uma raiz de `FS_ROOTS` exige editar o `.env` mesmo, porque é o operador da máquina que decidiu ela, não o usuário da UI.
+
+Qualquer código que escreva em `~/.dockerlocal/config.json` precisa ler-modificar-escrever, nunca sobrescrever o objeto inteiro — é a mesma regra que valeu enquanto a CLI (ver ADR-11) também guardava sua própria chave ali.
+
+---
+
+## ADR-11 — Binário standalone via Node SEA, CLI `dockerlocal` removida
+
+A fase 9 original previa uma CLI própria (`dockerlocal up/down/status/...`, estilo `kind`) só pra tirar a fricção de decorar flags de `docker compose`. Ela chegou a existir (`apps/cli`), mas dependia de Node instalado pra RODAR — o que contradizia a razão de ser dela: reduzir fricção, não trocar "decore as flags do compose" por "instale Node pra instalar uma CLI que chama o compose pra você".
+
+**Decisão:** trocar a CLI por um binário standalone via [Node SEA](https://nodejs.org/api/single-executable-applications.html) que embute a API + o build do web inteiros — não só um wrapper fino de `docker compose`, o app inteiro roda nele, sem precisar de container nem de Node instalado. A CLI foi removida (`apps/cli` não existe mais); quem quer container usa `docker compose` direto (documentado no README), quem quer zero-instalação usa o binário.
+
+**Como funciona** (`scripts/build-binary.mjs`, na raiz — não em `apps/api` nem `apps/web`, porque cruza os dois):
+1. `pnpm --filter web build` e `pnpm --filter api build` (tsc) normalmente — nada muda nesses dois passos.
+2. `esbuild` bundla o `main.js` **já compilado pelo tsc** (não o `.ts` fonte) num único CJS. Bundlar a partir do JS já compilado, não do TS, evita de vez a pergunta "o esbuild emite `emitDecoratorMetadata` certo pro DI do Nest?" — decorators já viraram chamadas de `Reflect.metadata(...)` antes do esbuild tocar no código.
+3. Um plugin do esbuild intercepta o import de `apps/api/src/static/web-assets.generated.ts` (um stub vazio no repo) e o substitui pelo conteúdo inteiro de `apps/web/dist`, cada arquivo em base64 — só nesse bundle. Fora dele (dev, Docker, npm), o stub fica vazio e `setupStatic()` (`main.ts`) cai pro `apps/web/dist` do disco, sem nenhuma mudança de comportamento.
+4. Baixa o `node` oficial de nodejs.org (versão travada abaixo) por plataforma — não usa o `node` do host que builda, pra o binário final não depender de coincidência de versão/arquitetura entre quem builda e o alvo.
+5. `node --experimental-sea-config` gera o blob; `postject` injeta esse blob no binário do Node baixado.
+
+**A pegadinha que custou a maior parte do tempo:** peer deps opcionais do Nest/dockerode (`class-validator`, `class-transformer`, `@nestjs/websockets`, `@nestjs/microservices`, `cpu-features`) não estão instaladas — hoje isso já é normal, o Nest embrulha esses `require()` em try/catch (`loadPackage`) e segue sem eles. Mas **dentro de um binário SEA, `require()` de qualquer coisa não-embutida e não-builtin do Node não cai no `node_modules` do disco como um require normal — ele lança `ERR_UNKNOWN_BUILTIN_MODULE` direto**, sem chance de try/catch a montante pegar do jeito que pegaria fora do SEA. `external: [...]` no esbuild não resolve isso (só empurra o problema pra esse mesmo erro em runtime); a saída foi um plugin que troca essas specific imports por um módulo stub que **lança um `Error` comum** — aí sim o try/catch de quem chama funciona igual sempre funcionou. `ssh2` quase entrou nessa lista por engano: parece opcional (só serve pra Docker via `ssh://`), mas o `docker-modem` o exige incondicionalmente no próprio module-load, sem try/catch — teve que ser bundlado de verdade. Só o binding nativo dele (`cpu-features`) é seguro de stubar.
+
+**Windows:** cross-build a partir de Linux funciona (baixa o `node.exe` oficial, injeta o mesmo jeito) mas nunca é executado neste projeto pra validar — sem uma VM/CI Windows, é builda-e-confia. A assinatura Authenticode do `node.exe` original é invalidada pela injeção (documentado como esperado pelo próprio Node); pode gerar aviso do SmartScreen.
 
 ---
 

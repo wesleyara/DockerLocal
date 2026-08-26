@@ -3,6 +3,7 @@ import type { StackService } from "@dockerlocal/shared";
 import { Icon } from "@iconify/vue";
 import StateBadge from "@/components/common/StateBadge.vue";
 import RelativeTime from "@/components/common/RelativeTime.vue";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 
 defineProps<{ service: StackService }>();
 
@@ -27,6 +28,7 @@ function portLabel(p: { public?: number; private: number; type: string }): strin
         <router-link :to="`/containers/${c.id}/logs`" class="font-mono hover:underline">
           {{ c.name }}
         </router-link>
+        <SelfBadge v-if="c.isSelf" />
         <StateBadge :state="c.state" />
         <span class="text-slate-500">{{ c.image }}</span>
         <span v-if="c.ports.length" class="text-slate-500">

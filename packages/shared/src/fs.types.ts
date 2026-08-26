@@ -1,6 +1,12 @@
 export interface FsRoot {
   label: string;
   path: string;
+  /** Raiz vinda do .env (FS_ROOTS), fixa — só as `source: "runtime"` podem ser removidas pela UI. */
+  source: "env" | "runtime";
+}
+
+export interface AddFsRootBody {
+  path: string;
 }
 
 export interface FsEntry {

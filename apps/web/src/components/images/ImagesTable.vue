@@ -5,6 +5,7 @@ import ResourceTable from "@/components/common/ResourceTable.vue";
 import SortableHeader from "@/components/common/SortableHeader.vue";
 import RelativeTime from "@/components/common/RelativeTime.vue";
 import ActionButtons from "@/components/images/ActionButtons.vue";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 import { formatBytes } from "@/utils/format";
 import { useSortableTable } from "@/composables/useSortableTable";
 
@@ -48,6 +49,7 @@ const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
           >
             dangling
           </span>
+          <SelfBadge v-if="item.isSelf" />
         </div>
       </td>
       <td class="px-3 py-2 font-mono text-xs text-slate-500">{{ item.shortId }}</td>

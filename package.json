@@ -8,6 +8,11 @@
   "scripts": {
     "dev": "pnpm --parallel --filter api --filter web dev",
     "build": "pnpm --filter api build && pnpm --filter web build",
-    "lint": "pnpm --filter api lint && pnpm --filter web lint"
+    "lint": "pnpm --filter api lint && pnpm --filter web lint",
+    "build:binary": "node scripts/build-binary.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "1.0.0-alpha.6"
   }
 }

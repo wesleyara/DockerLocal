@@ -55,8 +55,14 @@ async function handleRemove(): Promise<void> {
       v-else
       type="button"
       class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-red-400 dark:hover:bg-red-950"
-      :disabled="inUse"
-      :title="inUse ? `Em uso por ${image.usedBy.join(', ')} — remova o container antes` : 'Remover imagem permanentemente'"
+      :disabled="inUse || image.isSelf"
+      :title="
+        image.isSelf
+          ? 'Não é possível remover a imagem do próprio container do DockerLocal'
+          : inUse
+            ? `Em uso por ${image.usedBy.join(', ')} — remova o container antes`
+            : 'Remover imagem permanentemente'
+      "
       @click="handleRemove"
     >
       <Icon icon="lucide:trash-2" class="h-3.5 w-3.5" />

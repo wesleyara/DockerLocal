@@ -1,0 +1,51 @@
+services:
+  dockerlocal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dockerlocal:local
+    container_name: dockerlocal
+    restart: unless-stopped
+    labels:
+      com.dockerlocal.self: "true"
+    # Loopback SEMPRE. Sem o prefixo "127.0.0.1:" o Docker abre a porta na
+    # LAN por baixo do UFW (regra vai na DOCKER-USER/nat, não na INPUT) — e
+    # este app tem controle total do daemon, então isso seria root remoto
+    # sem autenticação. Ver "As três armadilhas" na fase 9.
+    ports:
+      - "127.0.0.1:${PORT:-5100}:5100"
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:?defina DOCKER_GID no .env — getent group docker | cut -d: -f3}"
+    environment:
+      PORT: "5100"
+      DOCKER_SOCKET: /var/run/docker.sock
+      FS_ROOTS: ${FS_ROOTS}
+      AUTH_TOKEN: ${AUTH_TOKEN:-}
+      ALLOWED_ORIGINS: http://localhost:${PORT:-5100},http://127.0.0.1:${PORT:-5100}
+      # ~ / ${HOME} num compose alvo resolve pro HOME do node dentro do
+      # container sem isso — quase sempre não é o que o compose alvo quer.
+      HOME: ${HOME}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Bind espelhado: MESMO caminho dos dois lados. Quem monta os volumes
+      # das stacks alvo é o daemon do HOST — se aqui dentro os paths não
+      # baterem com o host, todo bind relativo delas quebra. Nunca troque
+      # por um caminho diferente à esquerda, e nunca espelhe "/".
+      - "${PROJECTS_ROOT}:${PROJECTS_ROOT}"
+      - dockerlocal_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5100/api/system/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  dockerlocal_data:

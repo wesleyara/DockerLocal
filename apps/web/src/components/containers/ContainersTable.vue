@@ -4,6 +4,7 @@ import { Icon } from "@iconify/vue";
 import ResourceTable from "@/components/common/ResourceTable.vue";
 import SortableHeader from "@/components/common/SortableHeader.vue";
 import StateBadge from "@/components/common/StateBadge.vue";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 import RelativeTime from "@/components/common/RelativeTime.vue";
 import ActionButtons from "@/components/common/ActionButtons.vue";
 import { useSortableTable } from "@/composables/useSortableTable";
@@ -48,7 +49,12 @@ function portUrl(p: { public?: number; private: number; type: string }): string 
       <th class="px-3 py-2 col-label text-slate-500 dark:text-slate-400">Ações</th>
     </template>
     <template #row="{ item, pending: rowPending }">
-      <td class="px-3 py-2 font-medium">{{ item.name }}</td>
+      <td class="px-3 py-2 font-medium">
+        <span class="inline-flex items-center gap-1.5">
+          {{ item.name }}
+          <SelfBadge v-if="item.isSelf" />
+        </span>
+      </td>
       <td class="px-3 py-2 text-slate-500">{{ item.image }}</td>
       <td class="px-3 py-2"><StateBadge :state="item.state" /></td>
       <td class="px-3 py-2 text-slate-500">

@@ -12,6 +12,7 @@ import LogToolbar from "@/components/logs/LogToolbar.vue";
 import LogViewer from "@/components/logs/LogViewer.vue";
 import StackServiceRow from "@/components/stacks/StackServiceRow.vue";
 import ErrorBanner from "@/components/common/ErrorBanner.vue";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -156,6 +157,7 @@ function handleDownload(): void {
         <Icon icon="lucide:boxes" class="h-4.5 w-4.5 text-slate-400" />
         {{ project }}
       </h1>
+      <SelfBadge v-if="detail?.isSelf" />
 
       <div v-if="detail" class="ml-auto flex items-center gap-1">
         <Icon v-if="busy" icon="lucide:loader-2" class="h-4 w-4 animate-spin text-slate-400" />
@@ -171,8 +173,9 @@ function handleDownload(): void {
           </button>
           <button
             v-if="detail.runningCount > 0"
-            title="Reiniciar serviços"
-            class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+            :disabled="detail.isSelf"
+            :title="detail.isSelf ? 'Não é possível reiniciar a própria stack do DockerLocal' : 'Reiniciar serviços'"
+            class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-blue-400 dark:hover:bg-blue-950"
             @click="run('restart')"
           >
             <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
@@ -180,8 +183,9 @@ function handleDownload(): void {
           </button>
           <button
             v-if="detail.containerCount > 0"
-            title="Derrubar a stack"
-            class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+            :disabled="detail.isSelf"
+            :title="detail.isSelf ? 'Não é possível derrubar a própria stack do DockerLocal' : 'Derrubar a stack'"
+            class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-amber-400 dark:hover:bg-amber-950"
             @click="handleDown"
           >
             <Icon icon="lucide:square" class="h-3.5 w-3.5" />

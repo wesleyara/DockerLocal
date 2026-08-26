@@ -10,6 +10,7 @@ export interface ImageSummary {
   containers: number;
   /** Nomes dos containers (parados ou rodando) que usam esta imagem. */
   usedBy: string[];
+  isSelf: boolean;
 }
 
 export type ImageBuildEngine = "cli" | "api";

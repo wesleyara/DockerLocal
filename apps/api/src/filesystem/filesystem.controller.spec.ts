@@ -6,9 +6,18 @@ import type { AppConfig } from '../config/configuration';
 import { FileDetectService } from './file-detect.service';
 import { FilesystemController } from './filesystem.controller';
 import { PathSafetyService } from './path-safety.service';
+import type { FsConfigService } from './fs-config.service';
 
 function configFor(roots: string[]): AppConfig {
   return { fsRoots: roots } as AppConfig;
+}
+
+function noRuntimeRoots(): FsConfigService {
+  return {
+    list: () => [],
+    add: () => undefined,
+    remove: () => false,
+  } as unknown as FsConfigService;
 }
 
 describe('FilesystemController', () => {
@@ -28,7 +37,10 @@ describe('FilesystemController', () => {
     writeFileSync(join(root, 'invest-broker', 'Dockerfile'), 'FROM node');
     mkdirSync(join(root, '.hidden'), { recursive: true });
 
-    const pathSafety = new PathSafetyService(configFor([root]));
+    const pathSafety = new PathSafetyService(
+      configFor([root]),
+      noRuntimeRoots(),
+    );
     const fileDetect = new FileDetectService(pathSafety);
     controller = new FilesystemController(pathSafety, fileDetect);
   });
@@ -38,7 +50,9 @@ describe('FilesystemController', () => {
   });
 
   it('lista raízes com label derivado do basename', () => {
-    expect(controller.roots()).toEqual([{ label: 'development', path: root }]);
+    expect(controller.roots()).toEqual([
+      { label: 'development', path: root, source: 'env' },
+    ]);
   });
 
   it('lista diretórios antes de arquivos, ordenados, e esconde ocultos por padrão', async () => {

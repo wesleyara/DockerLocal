@@ -223,6 +223,7 @@ export class StacksController {
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
     @Body(new ZodValidationPipe(composeDownBodySchema)) body: ComposeDownBody,
   ): Promise<{ taskId: string }> {
+    await this.assertNotSelfStack(params.project, 'derrubar');
     const target = await this.discovery.resolveTarget(params.project);
     const args = ['down', '--remove-orphans'];
     if (body.volumes) args.push('-v');
@@ -410,23 +411,39 @@ export class StacksController {
     );
   }
 
-  private simple(
+  private async simple(
     project: string,
     kind: string,
     action: 'start' | 'stop' | 'restart' | 'pull',
     services: string[] | undefined,
   ): Promise<{ taskId: string }> {
-    return this.discovery.resolveTarget(project).then((target) =>
-      respond(
-        this.composeCli.tryStart({
-          project,
-          kind,
-          label: `${action} ${project}`,
-          workingDir: target.workingDir,
-          configFiles: target.configFiles,
-          args: [action, ...(services ?? [])],
-        }),
-      ),
+    if (action === 'stop' || action === 'restart') {
+      await this.assertNotSelfStack(
+        project,
+        action === 'stop' ? 'parar' : 'reiniciar',
+      );
+    }
+    const target = await this.discovery.resolveTarget(project);
+    return respond(
+      this.composeCli.tryStart({
+        project,
+        kind,
+        label: `${action} ${project}`,
+        workingDir: target.workingDir,
+        configFiles: target.configFiles,
+        args: [action, ...(services ?? [])],
+      }),
     );
+  }
+
+  private async assertNotSelfStack(
+    project: string,
+    action: string,
+  ): Promise<void> {
+    if (await this.discovery.isSelfStack(project)) {
+      throw new ForbiddenException(
+        `Não é possível ${action} a própria stack do DockerLocal — isso derrubaria o app no meio do request.`,
+      );
+    }
   }
 }
