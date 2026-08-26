@@ -12,39 +12,39 @@ A fase se divide em duas metades independentes: **leitura** (dockerode, barata, 
 
 ### Metade 1 — discovery (leitura pura)
 
-- [ ] `StackDiscoveryService` — agrupar `listContainers({all:true})` por `com.docker.compose.project`
-- [ ] Extrair `working_dir`, `config_files` (split por `,`), `service`, `container-number`
-- [ ] **Filtrar `oneoff === 'True'`** — T maiúsculo; containers de `docker compose run` não são serviços da stack
-- [ ] Cruzar volumes e networks pelo mesmo label `project`
-- [ ] Derivar `status`: `running` | `partial` | `stopped`
-- [ ] Validar `config_files` com `fs.access` → `fileExists: false` vira badge "arquivo não encontrado"
-- [ ] `GET /api/stacks` e `GET /api/stacks/:project`
-- [ ] `StacksView.vue` com `StackCard.vue` e `StackServiceRow.vue`
-- [ ] `StackDetailView.vue` — serviços, containers, volumes, networks, conteúdo do compose
+- [x] `StackDiscoveryService` — agrupar `listContainers({all:true})` por `com.docker.compose.project`
+- [x] Extrair `working_dir`, `config_files` (split por `,`), `service`, `container-number`
+- [x] **Filtrar `oneoff === 'True'`** — T maiúsculo; containers de `docker compose run` não são serviços da stack
+- [x] Cruzar volumes e networks pelo mesmo label `project`
+- [x] Derivar `status`: `running` | `partial` | `stopped`
+- [x] Validar `config_files` com `fs.access` → `fileExists: false` vira badge "arquivo não encontrado"
+- [x] `GET /api/stacks` e `GET /api/stacks/:project`
+- [x] `StacksView.vue` com `StackCard.vue` e `StackServiceRow.vue`
+- [x] `StackDetailView.vue` — serviços, containers, volumes, networks, conteúdo do compose
 
 ### Metade 2 — execução
 
-- [ ] `ComposeCliService.run()` — `spawn('docker', ['compose', '--progress','plain', '--ansi','never', '-p', project, ...configFiles.flatMap(f => ['-f', f]), ...args], { cwd: workingDir, shell: false })`
-- [ ] **Ler stdout E stderr** — o progresso do compose sai no stderr
-- [ ] Pipe pelo `LineSplitter`, emitindo no `TaskRegistry`
-- [ ] Cancelamento: `SIGINT`, com `SIGKILL` após 10 s
-- [ ] Validar `project` com `/^[a-z0-9][a-z0-9_-]*$/`, máx. 63 chars
-- [ ] `Mutex` por projeto — operação em stack ocupada → **409 com o `taskId` em andamento**
-- [ ] `up` / `down` / `start` / `stop` / `restart` / `build` / `pull` → `202 {taskId}`
-- [ ] **Fallback do `down`:** se o compose file sumiu, tentar `docker compose -p <project> down` sem `-f`
-- [ ] `GET /api/stacks/:project/config` — `docker compose config --format json`, em buffer (não é Task)
-- [ ] `StackRegistryService` — persistir compose files conhecidos em `~/.dockerlocal/stacks.json`
-- [ ] Listagem = união de `source: 'discovered'` + `source: 'registry'`
-- [ ] `DELETE /api/stacks/:project/registry`
-- [ ] `GET /api/stacks/:project/logs/stream` — **SSE agregado** dos serviços, campo `service` por linha; nunca N conexões
+- [x] `ComposeCliService.run()` — `spawn('docker', ['compose', '--progress','plain', '--ansi','never', '-p', project, ...configFiles.flatMap(f => ['-f', f]), ...args], { cwd: workingDir, shell: false })`
+- [x] **Ler stdout E stderr** — o progresso do compose sai no stderr
+- [x] Pipe pelo `LineSplitter`, emitindo no `TaskRegistry`
+- [x] Cancelamento: `SIGINT`, com `SIGKILL` após 10 s
+- [x] Validar `project` com `/^[a-z0-9][a-z0-9_-]*$/`, máx. 63 chars
+- [x] `Mutex` por projeto — operação em stack ocupada → **409 com o `taskId` em andamento**
+- [x] `up` / `down` / `start` / `stop` / `restart` / `build` / `pull` → `202 {taskId}`
+- [x] **Fallback do `down`:** se o compose file sumiu, tentar `docker compose -p <project> down` sem `-f`
+- [x] `GET /api/stacks/:project/config` — `docker compose config --format json`, em buffer (não é Task)
+- [x] `StackRegistryService` — persistir compose files conhecidos em `~/.dockerlocal/stacks.json`
+- [x] Listagem = união de `source: 'discovered'` + `source: 'registry'`
+- [x] `DELETE /api/stacks/:project/registry`
+- [x] `GET /api/stacks/:project/logs/stream` — **SSE agregado** dos serviços, campo `service` por linha; nunca N conexões
 
 ### Frontend
 
-- [ ] `stacks.store.ts`
-- [ ] Botões de ação no `StackCard`, abrindo o `TaskDrawer` da fase 5
-- [ ] `down -v` exige digitar o nome do projeto (destrói volumes)
-- [ ] Badge de origem (`discovered` / `registry`) e de arquivo ausente
-- [ ] Viewer de logs agregado com filtro por serviço
+- [x] `stacks.store.ts`
+- [x] Botões de ação no `StackCard`, abrindo o `TaskDrawer` da fase 5
+- [x] `down -v` exige digitar o nome do projeto (destrói volumes)
+- [x] Badge de origem (`discovered` / `registry`) e de arquivo ausente
+- [x] Viewer de logs agregado com filtro por serviço
 
 ## Critério de aceite
 

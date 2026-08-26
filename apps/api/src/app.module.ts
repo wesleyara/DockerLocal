@@ -7,6 +7,7 @@ import { ImagesModule } from './images/images.module';
 import { VolumesModule } from './volumes/volumes.module';
 import { TasksModule } from './tasks/tasks.module';
 import { FilesystemModule } from './filesystem/filesystem.module';
+import { StacksModule } from './stacks/stacks.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { FilesystemModule } from './filesystem/filesystem.module';
     VolumesModule,
     TasksModule,
     FilesystemModule,
+    StacksModule,
   ],
 })
 export class AppModule {}
