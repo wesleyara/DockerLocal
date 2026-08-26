@@ -1,4 +1,4 @@
-import type { ImageSummary } from "@dockerlocal/shared";
+import type { BuildImageBody, ImageSummary } from "@dockerlocal/shared";
 import { http } from "./http";
 
 export interface ListImagesParams {
@@ -29,4 +29,6 @@ export const imagesApi = {
   prune: (danglingOnly = true) => http.post<unknown>("/images/prune", { danglingOnly }),
 
   pull: (ref: string) => http.post<{ taskId: string }>("/images/pull", { ref }),
+
+  build: (body: BuildImageBody) => http.post<{ taskId: string }>("/images/build", body),
 };

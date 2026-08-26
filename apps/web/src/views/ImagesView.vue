@@ -11,6 +11,7 @@ import ImagesTable from "@/components/images/ImagesTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ErrorBanner from "@/components/common/ErrorBanner.vue";
 import TableSkeleton from "@/components/common/TableSkeleton.vue";
+import BuildImageDialog from "./BuildImageDialog.vue";
 
 const store = useImagesStore();
 const tasksStore = useTasksStore();
@@ -38,6 +39,7 @@ async function pruneDangling(): Promise<void> {
 const pullDialogOpen = ref(false);
 const pullRef = ref("");
 const pulling = ref(false);
+const buildDialogOpen = ref(false);
 
 function openPullDialog(): void {
   pullRef.value = "";
@@ -77,6 +79,14 @@ async function submitPull(): Promise<void> {
         Images
       </h1>
       <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+        <button
+          class="flex items-center gap-1.5 rounded-app-sm bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)]"
+          title="Buildar uma imagem a partir de um Dockerfile"
+          @click="buildDialogOpen = true"
+        >
+          <Icon icon="lucide:hammer" class="h-3.5 w-3.5" />
+          Build
+        </button>
         <button
           class="flex items-center gap-1.5 rounded-app-sm bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)]"
           title="Puxar uma imagem do registry"
@@ -154,5 +164,7 @@ async function submitPull(): Promise<void> {
         </div>
       </form>
     </div>
+
+    <BuildImageDialog v-model:open="buildDialogOpen" />
   </div>
 </template>

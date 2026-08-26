@@ -12,14 +12,14 @@ Escolher um `Dockerfile` pela UI e buildar a imagem. Escolher um `docker-compose
 
 ### Build de imagem
 
-- [ ] `ImageBuildCliService` — caminho **padrão** (`engine: 'cli'`):
+- [x] `ImageBuildCliService` — caminho **padrão** (`engine: 'cli'`):
       `spawn('docker', ['build','--progress','plain','-f',dockerfileAbs, ...tags.flatMap(t=>['-t',t]), ...buildArgs, contextPath])`
-- [ ] `POST /api/images/build` → `202 {taskId}`, emitindo no `TaskRegistry`
-- [ ] Validar `contextPath` e `dockerfile` pelo `PathSafetyService`
-- [ ] Validar tags contra o formato de referência antes de virarem `-t`
-- [ ] Rejeitar Dockerfile **fora** do contexto com 400 e mensagem explícita (`path.relative` começando com `..`)
-- [ ] Avisar quando o contexto tiver mais de ~20 mil arquivos (contexto sem `.dockerignore` trava por minutos)
-- [ ] `ImageBuildService` — fallback `engine: 'api'` com `dockerode.buildImage` + `tar-fs` + `ignore`:
+- [x] `POST /api/images/build` → `202 {taskId}`, emitindo no `TaskRegistry`
+- [x] Validar `contextPath` e `dockerfile` pelo `PathSafetyService`
+- [x] Validar tags contra o formato de referência antes de virarem `-t`
+- [x] Rejeitar Dockerfile **fora** do contexto com 400 e mensagem explícita (`path.relative` começando com `..`)
+- [x] Avisar quando o contexto tiver mais de ~20 mil arquivos (contexto sem `.dockerignore` trava por minutos)
+- [x] `ImageBuildService` — fallback `engine: 'api'` com `dockerode.buildImage` + `tar-fs` + `ignore`:
   - `ignore` recebe path **absoluto** do tar-fs; relativizar e normalizar separadores antes de consultar o `.dockerignore`
   - opção `dockerfile` é **relativa à raiz do contexto**, com `/` — path absoluto dá `Cannot locate specified Dockerfile`
   - `followProgress` checando `errorDetail` (build falho retorna HTTP 200)
@@ -27,20 +27,20 @@ Escolher um `Dockerfile` pela UI e buildar a imagem. Escolher um `docker-compose
 
 ### Stack a partir de arquivo
 
-- [ ] `POST /api/stacks/from-file` — `{ composeFilePath, projectName?, envFile?, up? }` → `202 {taskId}`
-- [ ] Nome de projeto default = nome do diretório, sanitizado pela regex
-- [ ] Registrar no `StackRegistry` antes de subir, para a stack aparecer mesmo se o `up` falhar
-- [ ] Rodar `docker compose config` antes do `up` — valida o arquivo e dá erro legível em vez de falha críptica no meio
-- [ ] Detectar `include:` / `extends:` apontando para fora da raiz espelhada e avisar (quebra em container, fase 9)
+- [x] `POST /api/stacks/from-file` — `{ composeFilePath, projectName?, envFile?, up? }` → `202 {taskId}`
+- [x] Nome de projeto default = nome do diretório, sanitizado pela regex
+- [x] Registrar no `StackRegistry` antes de subir, para a stack aparecer mesmo se o `up` falhar
+- [x] Rodar `docker compose config` antes do `up` — valida o arquivo e dá erro legível em vez de falha críptica no meio
+- [x] Detectar `include:` / `extends:` apontando para fora da raiz espelhada e avisar (quebra em container, fase 9)
 
 ### Frontend
 
-- [ ] `BuildImageDialog.vue` — contexto e Dockerfile via `FileBrowserDialog`, campos de tags, build args (pares chave/valor), `--no-cache`, target
-- [ ] Ao escolher um Dockerfile, sugerir o diretório dele como contexto
-- [ ] `CreateStackDialog.vue` — compose file via browser, nome do projeto (pré-preenchido), `.env` opcional, checkbox "subir agora"
-- [ ] Preview do arquivo escolhido antes de confirmar (via `/api/fs/read`)
-- [ ] Ambos disparam a Task e abrem o `TaskDrawer`
-- [ ] Sucesso → refetch da lista correspondente
+- [x] `BuildImageDialog.vue` — contexto e Dockerfile via `FileBrowserDialog`, campos de tags, build args (pares chave/valor), `--no-cache`, target
+- [x] Ao escolher um Dockerfile, sugerir o diretório dele como contexto
+- [x] `CreateStackDialog.vue` — compose file via browser, nome do projeto (pré-preenchido), `.env` opcional, checkbox "subir agora"
+- [x] Preview do arquivo escolhido antes de confirmar (via `/api/fs/read`)
+- [x] Ambos disparam a Task e abrem o `TaskDrawer`
+- [x] Sucesso → refetch da lista correspondente
 
 ## Critério de aceite
 

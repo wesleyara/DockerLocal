@@ -82,11 +82,11 @@ Eventos do stream de logs:
 ```jsonc
 // POST /api/images/build
 { "contextPath": "/home/wesley/Documents/development/Capp",
-  "dockerfile": "backend/Dockerfile",     // RELATIVO ao contexto, com "/"
+  "dockerfile": "/home/wesley/Documents/development/Capp/backend/Dockerfile", // ABSOLUTO — passa pelo PathSafetyService, igual todo path vindo do cliente
   "tags": ["capp-backend:dev"],
   "buildArgs": { "NODE_ENV": "development" },
-  "target": null, "noCache": false, "pull": false,
-  "engine": "cli" }                        // "cli" (BuildKit, padrão) | "api" (dockerode)
+  "target": null, "noCache": false,
+  "engine": "cli" }                        // "cli" (BuildKit, padrão) | "api" (dockerode, fallback)
 ```
 
 ---

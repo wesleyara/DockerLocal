@@ -76,7 +76,7 @@ export const useTasksStore = defineStore("tasks", () => {
   function onFinished(task: Task): void {
     if (task.status === "succeeded") {
       toast.success(`${task.label} concluída.`);
-      if (task.kind === "image-pull") void useImagesStore().fetch(true);
+      if (task.kind === "image-pull" || task.kind === "image-build") void useImagesStore().fetch(true);
       if (task.kind.startsWith("compose-")) void useStacksStore().fetch(true);
     } else if (task.status === "failed") {
       toast.error(task.message ?? `${task.label} falhou.`);

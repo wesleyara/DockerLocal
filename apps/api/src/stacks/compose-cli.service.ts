@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { PathSafetyService } from '../filesystem/path-safety.service';
-import { TaskHandle, TaskRegistryService } from '../tasks/task-registry.service';
+import {
+  TaskHandle,
+  TaskRegistryService,
+} from '../tasks/task-registry.service';
 import { LineSplitter } from '../common/utils/line-splitter';
 
 const KILL_GRACE_MS = 10_000;
@@ -16,6 +19,8 @@ export interface RunOptions {
   args: string[];
   /** Só usado pelo `down`: se o compose file sumiu, tenta sem `-f`. */
   fallbackOnMissingFiles?: boolean;
+  /** Avisos emitidos como primeiras linhas da task (stderr), antes do spawn. */
+  preflightWarnings?: string[];
 }
 
 export interface StartResult {
@@ -84,6 +89,10 @@ export class ComposeCliService {
 
   private async execute(handle: TaskHandle, opts: RunOptions): Promise<void> {
     try {
+      for (const warning of opts.preflightWarnings ?? []) {
+        handle.emit('stderr', warning);
+      }
+
       let cwd: string;
       let files: string[];
 
@@ -99,20 +108,30 @@ export class ComposeCliService {
             '[fallback] compose file não encontrado — tentando down sem -f, pelos labels do projeto.',
           );
           files = [];
-          cwd = await this.pathSafety.resolveSafe(opts.workingDir).catch(() => tmpdir());
+          cwd = await this.pathSafety
+            .resolveSafe(opts.workingDir)
+            .catch(() => tmpdir());
         } else {
           throw err;
         }
       }
 
-      const code = await this.spawnCompose(handle, cwd, opts.project, files, opts.args);
+      const code = await this.spawnCompose(
+        handle,
+        cwd,
+        opts.project,
+        files,
+        opts.args,
+      );
       if (code === 0) {
         handle.succeed({ project: opts.project });
       } else {
         handle.fail(`docker compose saiu com código ${code}`);
       }
     } catch (err) {
-      handle.fail(err instanceof Error ? err.message : 'Falha ao executar compose');
+      handle.fail(
+        err instanceof Error ? err.message : 'Falha ao executar compose',
+      );
     } finally {
       this.busy.delete(opts.project);
     }
@@ -156,8 +175,12 @@ export class ComposeCliService {
       child.stderr.setEncoding('utf8');
       // O progresso do compose sai no stderr — nunca trate como erro aqui,
       // só o exit code decide sucesso ou falha.
-      child.stdout.pipe(new LineSplitter()).on('data', (t: string) => handle.emit('stdout', t));
-      child.stderr.pipe(new LineSplitter()).on('data', (t: string) => handle.emit('stderr', t));
+      child.stdout
+        .pipe(new LineSplitter())
+        .on('data', (t: string) => handle.emit('stdout', t));
+      child.stderr
+        .pipe(new LineSplitter())
+        .on('data', (t: string) => handle.emit('stderr', t));
 
       const onAbort = () => {
         child.kill('SIGINT');
@@ -197,7 +220,8 @@ export class ComposeCliService {
 
       child.on('close', (code) => {
         if (code === 0) resolvePromise(stdout);
-        else reject(new Error(stderr.trim() || `docker saiu com código ${code}`));
+        else
+          reject(new Error(stderr.trim() || `docker saiu com código ${code}`));
       });
       child.on('error', reject);
     });

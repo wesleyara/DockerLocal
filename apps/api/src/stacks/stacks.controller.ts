@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   MessageEvent,
@@ -12,12 +14,19 @@ import {
   Sse,
   UseGuards,
 } from '@nestjs/common';
+import { readFile } from 'node:fs/promises';
+import { basename, dirname } from 'node:path';
 import { EMPTY, Observable, concat, from, interval, merge, of } from 'rxjs';
 import { bufferTime, filter, finalize, map, switchMap } from 'rxjs/operators';
 import type { StackDetail, StackSummary } from '@dockerlocal/shared';
 import { OriginGuard } from '../common/guards/origin.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { LogSessionService, LogSession } from '../containers/log-session.service';
+import { PathSafetyService } from '../filesystem/path-safety.service';
+import { TaskRegistryService } from '../tasks/task-registry.service';
+import {
+  LogSessionService,
+  LogSession,
+} from '../containers/log-session.service';
 import { type LogQuery, logQuerySchema } from '../containers/dto/log-query.dto';
 import { StackDiscoveryService } from './stack-discovery.service';
 import { ComposeCliService, StartResult } from './compose-cli.service';
@@ -30,7 +39,16 @@ import {
   type ComposeBuildBody,
   type ComposeServicesBody,
 } from './dto/compose-up.dto';
-import { composeDownBodySchema, type ComposeDownBody } from './dto/compose-down.dto';
+import {
+  composeDownBodySchema,
+  type ComposeDownBody,
+} from './dto/compose-down.dto';
+import {
+  createStackBodySchema,
+  type CreateStackBody,
+} from './dto/create-stack.dto';
+import { sanitizeProjectName } from './project-name.util';
+import { extractComposeExternalRefs } from './compose-external-refs.util';
 
 const HEARTBEAT_MS = 20_000;
 
@@ -59,11 +77,104 @@ export class StacksController {
     private readonly discovery: StackDiscoveryService,
     private readonly composeCli: ComposeCliService,
     private readonly sessions: LogSessionService,
+    private readonly pathSafety: PathSafetyService,
+    private readonly tasks: TaskRegistryService,
   ) {}
 
   @Get()
   async list(): Promise<StackSummary[]> {
     return this.discovery.list();
+  }
+
+  /**
+   * Sobe uma stack a partir de um compose file escolhido pelo file browser.
+   * Registra no StackRegistry ANTES do `up` — se o `up` falhar, a stack
+   * ainda aparece na aba (fase 6/7).
+   */
+  @Post('from-file')
+  @HttpCode(202)
+  async fromFile(
+    @Body(new ZodValidationPipe(createStackBodySchema)) body: CreateStackBody,
+  ): Promise<{ taskId: string }> {
+    const composeFilePath = await this.pathSafety.resolveSafe(
+      body.composeFilePath,
+    );
+    const workingDir = dirname(composeFilePath);
+    const project = body.projectName
+      ? body.projectName
+      : sanitizeProjectName(basename(workingDir));
+
+    let envFile: string | undefined;
+    if (body.envFile) {
+      envFile = await this.pathSafety.resolveSafe(body.envFile);
+    }
+
+    // `docker compose config` valida o arquivo e dá erro legível, em vez de
+    // uma falha críptica no meio do `up`.
+    try {
+      await this.composeCli.config(workingDir, [composeFilePath]);
+    } catch (err) {
+      throw new BadRequestException(
+        `Compose inválido: ${err instanceof Error ? err.message : 'erro desconhecido'}`,
+      );
+    }
+
+    this.discovery.registerFromFile(project, workingDir, [composeFilePath]);
+
+    const preflightWarnings = await this.detectExternalRefWarnings(
+      composeFilePath,
+      workingDir,
+    );
+
+    if (body.up === false) {
+      const handle = this.tasks.create(
+        'compose-register',
+        `registrar ${project}`,
+        {
+          project,
+        },
+      );
+      for (const warning of preflightWarnings) handle.emit('stderr', warning);
+      handle.succeed({ project });
+      return { taskId: handle.id };
+    }
+
+    const args = ['up', '-d', '--remove-orphans'];
+    if (envFile) args.push('--env-file', envFile);
+
+    return respond(
+      this.composeCli.tryStart({
+        project,
+        kind: 'compose-up',
+        label: `up ${project}`,
+        workingDir,
+        configFiles: [composeFilePath],
+        args,
+        preflightWarnings,
+      }),
+    );
+  }
+
+  private async detectExternalRefWarnings(
+    composeFilePath: string,
+    workingDir: string,
+  ): Promise<string[]> {
+    const raw = await readFile(composeFilePath, 'utf8').catch(() => '');
+    const candidates = extractComposeExternalRefs(raw, workingDir);
+
+    const warnings: string[] = [];
+    for (const candidate of candidates) {
+      try {
+        await this.pathSafety.resolveSafe(candidate);
+      } catch (err) {
+        if (err instanceof ForbiddenException) {
+          warnings.push(
+            `Aviso: "${candidate}" (include/extends) está fora da raiz espelhada — pode quebrar quando o app roda em container.`,
+          );
+        }
+      }
+    }
+    return warnings;
   }
 
   @Get(':project')
@@ -134,7 +245,8 @@ export class StacksController {
   @HttpCode(202)
   async start(
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
-    @Body(new ZodValidationPipe(composeServicesBodySchema)) body: ComposeServicesBody,
+    @Body(new ZodValidationPipe(composeServicesBodySchema))
+    body: ComposeServicesBody,
   ): Promise<{ taskId: string }> {
     return this.simple(params.project, 'compose-start', 'start', body.services);
   }
@@ -143,7 +255,8 @@ export class StacksController {
   @HttpCode(202)
   async stop(
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
-    @Body(new ZodValidationPipe(composeServicesBodySchema)) body: ComposeServicesBody,
+    @Body(new ZodValidationPipe(composeServicesBodySchema))
+    body: ComposeServicesBody,
   ): Promise<{ taskId: string }> {
     return this.simple(params.project, 'compose-stop', 'stop', body.services);
   }
@@ -152,16 +265,23 @@ export class StacksController {
   @HttpCode(202)
   async restart(
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
-    @Body(new ZodValidationPipe(composeServicesBodySchema)) body: ComposeServicesBody,
+    @Body(new ZodValidationPipe(composeServicesBodySchema))
+    body: ComposeServicesBody,
   ): Promise<{ taskId: string }> {
-    return this.simple(params.project, 'compose-restart', 'restart', body.services);
+    return this.simple(
+      params.project,
+      'compose-restart',
+      'restart',
+      body.services,
+    );
   }
 
   @Post(':project/pull')
   @HttpCode(202)
   async pull(
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
-    @Body(new ZodValidationPipe(composeServicesBodySchema)) body: ComposeServicesBody,
+    @Body(new ZodValidationPipe(composeServicesBodySchema))
+    body: ComposeServicesBody,
   ): Promise<{ taskId: string }> {
     return this.simple(params.project, 'compose-pull', 'pull', body.services);
   }
@@ -190,9 +310,9 @@ export class StacksController {
   }
 
   @Delete(':project/registry')
-  async removeFromRegistry(
+  removeFromRegistry(
     @Param(new ZodValidationPipe(projectParamSchema)) params: ProjectParam,
-  ): Promise<{ ok: boolean }> {
+  ): { ok: boolean } {
     return { ok: this.discovery.removeFromRegistry(params.project) };
   }
 
@@ -218,7 +338,11 @@ export class StacksController {
             targets.map((t): Promise<SubscribedService> =>
               this.sessions
                 .subscribe(t.id, tail)
-                .then(({ session, replay }) => ({ service: t.service, session, replay })),
+                .then(({ session, replay }) => ({
+                  service: t.service,
+                  session,
+                  replay,
+                })),
             ),
           ),
         ).pipe(
@@ -240,7 +364,8 @@ export class StacksController {
               )
               .sort(
                 (a, b) =>
-                  (a.timestamp ?? '').localeCompare(b.timestamp ?? '') || a.seq - b.seq,
+                  (a.timestamp ?? '').localeCompare(b.timestamp ?? '') ||
+                  a.seq - b.seq,
               );
 
             const replay$ = of<MessageEvent>({
@@ -262,7 +387,10 @@ export class StacksController {
                 ).pipe(
                   bufferTime(100),
                   filter((lines) => lines.length > 0),
-                  map((lines) => ({ type: 'logs', data: { lines, dropped: 0 } })),
+                  map((lines) => ({
+                    type: 'logs',
+                    data: { lines, dropped: 0 },
+                  })),
                 )
               : EMPTY;
 
@@ -272,7 +400,8 @@ export class StacksController {
 
             return concat(replay$, merge(live$, heartbeat$)).pipe(
               finalize(() => {
-                for (const r of ok) this.sessions.release(r.session.containerId);
+                for (const r of ok)
+                  this.sessions.release(r.session.containerId);
               }),
             );
           }),

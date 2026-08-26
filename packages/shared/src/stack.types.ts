@@ -49,6 +49,13 @@ export interface ComposeServicesBody {
   services?: string[];
 }
 
+export interface CreateStackFromFileBody {
+  composeFilePath: string;
+  projectName?: string;
+  envFile?: string;
+  up?: boolean;
+}
+
 export interface StackLogLine {
   seq: number;
   service: string;
