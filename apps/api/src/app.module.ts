@@ -6,6 +6,7 @@ import { ContainersModule } from './containers/containers.module';
 import { ImagesModule } from './images/images.module';
 import { VolumesModule } from './volumes/volumes.module';
 import { TasksModule } from './tasks/tasks.module';
+import { FilesystemModule } from './filesystem/filesystem.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { TasksModule } from './tasks/tasks.module';
     ImagesModule,
     VolumesModule,
     TasksModule,
+    FilesystemModule,
   ],
 })
 export class AppModule {}

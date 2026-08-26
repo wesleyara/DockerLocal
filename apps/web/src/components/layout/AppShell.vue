@@ -5,6 +5,7 @@ import StatusBar from "./StatusBar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import Toast from "@/components/common/Toast.vue";
 import TaskDrawer from "@/components/tasks/TaskDrawer.vue";
+import FileBrowserDialog from "@/components/fs/FileBrowserDialog.vue";
 import { useDockerEvents } from "@/composables/useDockerEvents";
 import { useUiStore } from "@/stores/ui.store";
 import { useTasksStore } from "@/stores/tasks.store";
@@ -44,6 +45,7 @@ void useTasksStore().restoreActive();
     </div>
     <StatusBar />
     <ConfirmDialog />
+    <FileBrowserDialog />
     <Toast />
     <TaskDrawer />
   </div>
