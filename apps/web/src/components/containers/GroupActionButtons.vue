@@ -22,7 +22,8 @@ const toast = useToast();
 const busy = ref(false);
 
 const startable = computed(() => props.items.filter((c) => c.state !== "running"));
-const stoppable = computed(() => props.items.filter((c) => c.state === "running"));
+const stoppable = computed(() => props.items.filter((c) => c.state === "running" && !c.isSelf));
+const removable = computed(() => props.items.filter((c) => !c.isSelf));
 
 function openLogs(): void {
   router.push({
@@ -57,9 +58,10 @@ async function stopAll(): Promise<void> {
 }
 
 async function removeAll(): Promise<void> {
+  const targets = removable.value;
   const ok = await confirm({
     title: "Remover grupo",
-    message: `Remover os ${props.items.length} containers de "${props.label}"? Essa ação não pode ser desfeita.`,
+    message: `Remover ${targets.length} container(es) de "${props.label}"? Essa ação não pode ser desfeita.`,
     confirmLabel: "Remover todos",
   });
   if (!ok) return;
@@ -67,10 +69,10 @@ async function removeAll(): Promise<void> {
   busy.value = true;
   const conflicted: ContainerSummary[] = [];
   try {
-    const results = await Promise.allSettled(props.items.map((c) => store.act(c.id, "remove")));
+    const results = await Promise.allSettled(targets.map((c) => store.act(c.id, "remove")));
     results.forEach((result, i) => {
       if (result.status === "rejected" && result.reason instanceof ApiError && result.reason.canForce) {
-        conflicted.push(props.items[i]);
+        conflicted.push(targets[i]);
       }
     });
   } finally {
@@ -78,7 +80,7 @@ async function removeAll(): Promise<void> {
   }
 
   if (conflicted.length === 0) {
-    toast.success(`${props.items.length} container(es) removidos.`);
+    toast.success(`${targets.length} container(es) removidos.`);
     return;
   }
 
@@ -131,9 +133,9 @@ async function removeAll(): Promise<void> {
       Parar todos
     </button>
     <button
-      title="Remover todos os containers do grupo permanentemente"
+      title="Remover todos os containers do grupo permanentemente (o próprio DockerLocal, se estiver no grupo, é preservado)"
       class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950"
-      :disabled="busy || items.length === 0"
+      :disabled="busy || removable.length === 0"
       @click="removeAll"
     >
       <Icon icon="lucide:trash-2" class="h-3.5 w-3.5" />

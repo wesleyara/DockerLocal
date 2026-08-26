@@ -13,6 +13,7 @@ export interface StackSummary {
   serviceCount: number;
   containerCount: number;
   runningCount: number;
+  isSelf: boolean;
 }
 
 export interface StackService {

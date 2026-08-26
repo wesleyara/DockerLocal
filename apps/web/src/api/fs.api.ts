@@ -4,6 +4,11 @@ import { http } from "./http";
 export const fsApi = {
   roots: () => http.get<FsRoot[]>("/fs/roots"),
 
+  addRoot: (path: string) => http.post<FsRoot>("/fs/roots", { path }),
+
+  removeRoot: (path: string) =>
+    http.delete<{ ok: boolean }>(`/fs/roots?${new URLSearchParams({ path }).toString()}`),
+
   list: (path: string, showHidden = false) => {
     const query = new URLSearchParams({ path });
     if (showHidden) query.set("showHidden", "true");

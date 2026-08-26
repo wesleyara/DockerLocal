@@ -5,6 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useStacksStore } from "@/stores/stacks.store";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 
 const props = defineProps<{ stack: StackSummary }>();
 
@@ -82,6 +83,7 @@ async function handleRemoveFromRegistry(): Promise<void> {
           <Icon icon="lucide:boxes" class="h-4 w-4 shrink-0 text-slate-400" />
           <span class="truncate">{{ stack.project }}</span>
         </router-link>
+        <SelfBadge v-if="stack.isSelf" class="mt-1" />
         <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400" :title="stack.workingDir">
           {{ stack.workingDir || "sem working dir conhecido" }}
         </p>
@@ -131,8 +133,9 @@ async function handleRemoveFromRegistry(): Promise<void> {
         </button>
         <button
           v-if="stack.runningCount > 0"
-          title="Reiniciar serviços"
-          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+          :disabled="stack.isSelf"
+          :title="stack.isSelf ? 'Não é possível reiniciar a própria stack do DockerLocal' : 'Reiniciar serviços'"
+          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-blue-400 dark:hover:bg-blue-950"
           @click="run('restart')"
         >
           <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
@@ -140,16 +143,18 @@ async function handleRemoveFromRegistry(): Promise<void> {
         </button>
         <button
           v-if="stack.containerCount > 0"
-          title="Derrubar a stack"
-          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+          :disabled="stack.isSelf"
+          :title="stack.isSelf ? 'Não é possível derrubar a própria stack do DockerLocal' : 'Derrubar a stack'"
+          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-amber-400 dark:hover:bg-amber-950"
           @click="handleDown"
         >
           <Icon icon="lucide:square" class="h-3.5 w-3.5" />
           Down
         </button>
         <button
-          title="Derrubar e destruir volumes — irreversível"
-          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+          :disabled="stack.isSelf"
+          :title="stack.isSelf ? 'Não é possível derrubar a própria stack do DockerLocal' : 'Derrubar e destruir volumes — irreversível'"
+          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-red-400 dark:hover:bg-red-950"
           @click="handleDownWithVolumes"
         >
           <Icon icon="lucide:trash-2" class="h-3.5 w-3.5" />

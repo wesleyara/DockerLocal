@@ -90,8 +90,9 @@ async function handleRemove(): Promise<void> {
       </button>
       <button
         v-if="container.state === 'running'"
-        title="Parar container — encerra os processos dentro dele"
-        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+        :disabled="container.isSelf"
+        :title="container.isSelf ? 'Não é possível parar o próprio container do DockerLocal' : 'Parar container — encerra os processos dentro dele'"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-amber-400 dark:hover:bg-amber-950"
         @click="run('stop')"
       >
         <Icon icon="lucide:square" class="h-3.5 w-3.5" />
@@ -99,16 +100,18 @@ async function handleRemove(): Promise<void> {
       </button>
       <button
         v-if="container.state === 'running'"
-        title="Reiniciar container"
-        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+        :disabled="container.isSelf"
+        :title="container.isSelf ? 'Não é possível reiniciar o próprio container do DockerLocal' : 'Reiniciar container'"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-blue-400 dark:hover:bg-blue-950"
         @click="run('restart')"
       >
         <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
         Reiniciar
       </button>
       <button
-        title="Remover container permanentemente"
-        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+        :disabled="container.isSelf"
+        :title="container.isSelf ? 'Não é possível remover o próprio container do DockerLocal' : 'Remover container permanentemente'"
+        class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-red-400 dark:hover:bg-red-950"
         @click="handleRemove"
       >
         <Icon icon="lucide:trash-2" class="h-3.5 w-3.5" />

@@ -1,8 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { hostname } from 'node:os';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type Docker from 'dockerode';
 import type { ContainerSummary, ContainerState } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
+import { SelfDetectService } from '../docker/self-detect.service';
 import { ListContainersQuery } from './dto/list-containers.dto';
 import {
   KillContainerBody,
@@ -20,13 +20,15 @@ const COMPOSE_WORKING_DIR_LABEL = 'com.docker.compose.project.working_dir';
 
 @Injectable()
 export class ContainersService {
-  constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
+  constructor(
+    @Inject(DOCKER_CLIENT) private readonly docker: Docker,
+    private readonly selfDetect: SelfDetectService,
+  ) {}
 
   async list(query: ListContainersQuery): Promise<ContainerSummary[]> {
     const raw = await this.docker.listContainers({ all: query.all ?? false });
-    const selfId = this.resolveSelfId();
 
-    let summaries = raw.map((c) => this.normalize(c, selfId));
+    let summaries = raw.map((c) => this.normalize(c));
 
     if (query.project) {
       summaries = summaries.filter((c) => c.compose?.project === query.project);
@@ -47,16 +49,19 @@ export class ContainersService {
   }
 
   async stop(id: string, body: StopContainerBody): Promise<void> {
+    this.assertNotSelf(id, 'parar');
     await this.docker.getContainer(id).stop(body.t ? { t: body.t } : undefined);
   }
 
   async restart(id: string, body: RestartContainerBody): Promise<void> {
+    this.assertNotSelf(id, 'reiniciar');
     await this.docker
       .getContainer(id)
       .restart(body.t ? { t: body.t } : undefined);
   }
 
   async kill(id: string, body: KillContainerBody): Promise<void> {
+    this.assertNotSelf(id, 'matar');
     await this.docker.getContainer(id).kill({ signal: body.signal });
   }
 
@@ -73,6 +78,7 @@ export class ContainersService {
   }
 
   async remove(id: string, query: RemoveContainerQuery): Promise<void> {
+    this.assertNotSelf(id, 'remover');
     await this.docker.getContainer(id).remove({
       force: query.force ?? false,
       v: query.v ?? false,
@@ -83,10 +89,7 @@ export class ContainersService {
     return this.docker.pruneContainers();
   }
 
-  private normalize(
-    c: Docker.ContainerInfo,
-    selfId: string | null,
-  ): ContainerSummary {
+  private normalize(c: Docker.ContainerInfo): ContainerSummary {
     const labels = c.Labels ?? {};
     const project = labels[COMPOSE_PROJECT_LABEL];
 
@@ -121,7 +124,7 @@ export class ContainersService {
       })),
       labels,
       compose,
-      isSelf: selfId !== null && c.Id.startsWith(selfId),
+      isSelf: this.selfDetect.isSelfContainer(c.Id),
     };
   }
 
@@ -139,8 +142,11 @@ export class ContainersService {
       : 'exited';
   }
 
-  private resolveSelfId(): string | null {
-    const host = hostname();
-    return /^[0-9a-f]{12}$/i.test(host) ? host : null;
+  private assertNotSelf(id: string, action: string): void {
+    if (this.selfDetect.isSelfContainer(id)) {
+      throw new ForbiddenException(
+        `Não é possível ${action} o próprio container do DockerLocal — isso derrubaria o app no meio do request. Pare-o por fora (ex.: dockerlocal stop) se precisar mesmo.`,
+      );
+    }
   }
 }

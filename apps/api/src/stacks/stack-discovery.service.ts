@@ -9,6 +9,7 @@ import type {
   StackSummary,
 } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
+import { SelfDetectService } from '../docker/self-detect.service';
 import { ContainersService } from '../containers/containers.service';
 import { StackRegistryService } from './stack-registry.service';
 
@@ -38,7 +39,17 @@ export class StackDiscoveryService {
     @Inject(DOCKER_CLIENT) private readonly docker: Docker,
     private readonly registry: StackRegistryService,
     private readonly containersService: ContainersService,
+    private readonly selfDetect: SelfDetectService,
   ) {}
+
+  /** Usado pelo controller pra bloquear down/stop/restart na própria stack. */
+  async isSelfStack(project: string): Promise<boolean> {
+    const groups = await this.rawGroups();
+    const group = groups.get(project);
+    return (group?.containers ?? []).some((c) =>
+      this.selfDetect.isSelfContainer(c.Id),
+    );
+  }
 
   async list(): Promise<StackSummary[]> {
     const groups = await this.rawGroups();
@@ -225,6 +236,7 @@ export class StackDiscoveryService {
       serviceCount: serviceNames.size,
       containerCount: containers.length,
       runningCount,
+      isSelf: containers.some((c) => this.selfDetect.isSelfContainer(c.Id)),
     };
   }
 

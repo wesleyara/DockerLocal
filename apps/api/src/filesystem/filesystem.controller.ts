@@ -1,8 +1,12 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
+  HttpCode,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +32,8 @@ import { listFsQuerySchema } from './dto/list-fs.dto';
 import type { ListFsQuery } from './dto/list-fs.dto';
 import { pathQuerySchema } from './dto/path-query.dto';
 import type { PathQuery } from './dto/path-query.dto';
+import { addFsRootBodySchema } from './dto/add-fs-root.dto';
+import type { AddFsRootBody } from './dto/add-fs-root.dto';
 
 const READ_MAX_BYTES = 512 * 1024;
 
@@ -46,10 +52,23 @@ export class FilesystemController {
 
   @Get('roots')
   roots(): FsRoot[] {
-    return this.pathSafety.listRoots().map((root) => ({
-      label: basename(root) || root,
-      path: root,
-    }));
+    return this.pathSafety.listRoots();
+  }
+
+  @Post('roots')
+  @HttpCode(201)
+  async addRoot(
+    @Body(new ZodValidationPipe(addFsRootBodySchema)) body: AddFsRootBody,
+  ): Promise<FsRoot> {
+    return this.pathSafety.addRoot(body.path);
+  }
+
+  @Delete('roots')
+  @HttpCode(200)
+  removeRoot(@Query(new ZodValidationPipe(pathQuerySchema)) query: PathQuery): {
+    ok: boolean;
+  } {
+    return { ok: this.pathSafety.removeRoot(query.path) };
   }
 
   @Get('list')
@@ -97,7 +116,7 @@ export class FilesystemController {
       return a.name.localeCompare(b.name);
     });
 
-    const isRoot = this.pathSafety.listRoots().includes(real);
+    const isRoot = this.pathSafety.isRootPath(real);
     const parent = isRoot ? null : dirname(real);
 
     return { path: real, parent, entries };

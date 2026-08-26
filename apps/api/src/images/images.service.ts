@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type Docker from 'dockerode';
 import type { ImageSummary } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
+import { SelfDetectService } from '../docker/self-detect.service';
 import { ListImagesQuery } from './dto/list-images.dto';
 import { RemoveImageQuery } from './dto/remove-image.dto';
 import { TagImageBody } from './dto/tag-image.dto';
@@ -9,7 +10,10 @@ import { PruneImagesBody } from './dto/prune-images.dto';
 
 @Injectable()
 export class ImagesService {
-  constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
+  constructor(
+    @Inject(DOCKER_CLIENT) private readonly docker: Docker,
+    private readonly selfDetect: SelfDetectService,
+  ) {}
 
   async list(query: ListImagesQuery): Promise<ImageSummary[]> {
     const [images, containers] = await Promise.all([
@@ -48,6 +52,11 @@ export class ImagesService {
   }
 
   async remove(id: string, query: RemoveImageQuery): Promise<unknown> {
+    if (this.selfDetect.isSelfImage(id)) {
+      throw new ForbiddenException(
+        'Não é possível remover a imagem do próprio container do DockerLocal.',
+      );
+    }
     return this.docker.getImage(id).remove({
       force: query.force ?? false,
       noprune: query.noprune ?? false,
@@ -74,6 +83,7 @@ export class ImagesService {
       labels: img.Labels ?? {},
       containers: img.Containers,
       usedBy,
+      isSelf: this.selfDetect.isSelfImage(img.Id),
     };
   }
 }
