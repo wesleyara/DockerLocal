@@ -49,7 +49,8 @@ function setupEmbeddedStatic(app: NestExpressApplication): void {
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (
       (req.method !== 'GET' && req.method !== 'HEAD') ||
-      req.path.startsWith('/api')
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/socket.io')
     ) {
       next();
       return;
@@ -80,7 +81,11 @@ function setupDiskStatic(app: NestExpressApplication): void {
 
   app.useStaticAssets(webDist);
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.method !== 'GET' || req.path.startsWith('/api')) {
+    if (
+      req.method !== 'GET' ||
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/socket.io')
+    ) {
       next();
       return;
     }

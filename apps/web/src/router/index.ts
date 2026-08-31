@@ -15,6 +15,11 @@ const router = createRouter({
       component: () => import("@/views/ContainerLogsView.vue"),
     },
     {
+      path: "/containers/:id/console",
+      name: "container-console",
+      component: () => import("@/views/ContainerConsoleView.vue"),
+    },
+    {
       path: "/containers/logs",
       name: "containers-group-logs",
       component: () => import("@/views/GroupLogsView.vue"),
