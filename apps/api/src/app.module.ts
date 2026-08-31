@@ -8,6 +8,7 @@ import { VolumesModule } from './volumes/volumes.module';
 import { TasksModule } from './tasks/tasks.module';
 import { FilesystemModule } from './filesystem/filesystem.module';
 import { StacksModule } from './stacks/stacks.module';
+import { ExecModule } from './exec/exec.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StacksModule } from './stacks/stacks.module';
     TasksModule,
     FilesystemModule,
     StacksModule,
+    ExecModule,
   ],
 })
 export class AppModule {}

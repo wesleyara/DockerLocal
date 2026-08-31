@@ -136,6 +136,10 @@ function walk(dir, base = dir) {
 // de sempre, então precisam virar um módulo stub que joga o MESMO tipo de
 // erro que o try/catch de quem chama já sabe engolir.
 //
+// `@nestjs/websockets` SAIU dessa lista na fase 10 (terminal exec) — agora
+// é dependência real (`ExecGateway`), então precisa ser bundlada de
+// verdade, não stubada.
+//
 // `ssh2` NÃO entra aqui — parece opcional (só serve pra Docker via
 // `ssh://`, que este app nunca configura) mas `docker-modem` requer o
 // arquivo que usa ssh2 incondicionalmente no próprio module-load (sem
@@ -145,8 +149,6 @@ function walk(dir, base = dir) {
 const OPTIONAL_PEER_DEPS = [
   '@nestjs/microservices',
   '@nestjs/microservices/microservices-module',
-  '@nestjs/websockets',
-  '@nestjs/websockets/socket-module',
   'class-validator',
   'class-transformer',
   'cpu-features',

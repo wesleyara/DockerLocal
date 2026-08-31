@@ -62,6 +62,17 @@ async function run(action: "up" | "restart" | "build"): Promise<void> {
   }
 }
 
+// "Restart com build" reaproveita o `up` (que já suporta --build e
+// --force-recreate) em vez do `restart` — `docker compose restart` sozinho
+// não rebuilda imagem nenhuma.
+async function runRestartWithBuild(): Promise<void> {
+  try {
+    await store.act(project.value, "up", { build: true, forceRecreate: true });
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Falha ao reiniciar com build");
+  }
+}
+
 async function handleDown(): Promise<void> {
   const ok = await confirm({
     title: `Derrubar "${project.value}"`,
@@ -180,6 +191,16 @@ function handleDownload(): void {
           >
             <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
             Restart
+          </button>
+          <button
+            v-if="detail.runningCount > 0"
+            :disabled="detail.isSelf"
+            :title="detail.isSelf ? 'Não é possível reiniciar a própria stack do DockerLocal' : 'Rebuildar imagens e recriar os containers'"
+            class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-blue-400 dark:hover:bg-blue-950"
+            @click="runRestartWithBuild"
+          >
+            <Icon icon="lucide:hammer" class="h-3.5 w-3.5" />
+            Restart + build
           </button>
           <button
             v-if="detail.containerCount > 0"
