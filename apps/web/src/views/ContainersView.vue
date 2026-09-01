@@ -16,7 +16,8 @@ const store = useContainersStore();
 useResourcePolling(() => store.fetch(true));
 
 const grouped = ref(true);
-const collapsed = reactive(new Set<string>());
+// Grupos começam colapsados — só entra aqui quando o usuário expande.
+const expanded = reactive(new Set<string>());
 
 const groups = computed(() => {
   return [...store.byProject.entries()]
@@ -29,10 +30,10 @@ const groups = computed(() => {
 });
 
 function toggleCollapsed(project: string): void {
-  if (collapsed.has(project)) {
-    collapsed.delete(project);
+  if (expanded.has(project)) {
+    expanded.delete(project);
   } else {
-    collapsed.add(project);
+    expanded.add(project);
   }
 }
 
@@ -86,7 +87,7 @@ function runningCount(items: { state: string }[]): number {
             <Icon
               icon="lucide:chevron-down"
               class="h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform"
-              :class="{ '-rotate-90': collapsed.has(group.project) }"
+              :class="{ '-rotate-90': !expanded.has(group.project) }"
             />
             <span>{{ group.project || UNGROUPED_LABEL }}</span>
             <span class="text-xs font-normal text-slate-500">
@@ -102,7 +103,7 @@ function runningCount(items: { state: string }[]): number {
           </span>
         </div>
 
-        <div v-if="!collapsed.has(group.project)" class="overflow-x-auto">
+        <div v-if="expanded.has(group.project)" class="overflow-x-auto">
           <ContainersTable :items="group.items" :pending="store.pending" :show-project-column="false" />
         </div>
       </div>

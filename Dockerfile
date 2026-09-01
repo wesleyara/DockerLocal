@@ -14,6 +14,29 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter web build && pnpm --filter api build
 
+# ---- buildx download ------------------------------------------------------
+# docker/buildx-bin no Docker Hub só publica tags soltas por minor (v0.34,
+# v0.35, v0.36 ...) que apontam pro HEAD de dev daquela linha — o binário
+# reporta a versão como hash de commit, não semver, e isso quebra o gate de
+# versão do `docker compose build` (exige buildx >= 0.17.0 parseável).
+# Baixa o binário oficial do GitHub Release com checksum verificado — o
+# único jeito de travar em v0.36.0 de verdade e reprodutível.
+FROM debian:bookworm-slim AS buildx-download
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    BUILDX_VERSION=0.36.0; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) BUILDX_SHA256=07823fdfcd82a41be90155a8b16876c1a780a6462de805a9f3f63b3119ccfb99 ;; \
+      arm64) BUILDX_SHA256=70382de03915c07c488ae4ddc4f7e169ee978f953e754ecfce110ba017e0132b ;; \
+      *) echo "arquitetura não suportada: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/docker-buildx \
+      "https://github.com/docker/buildx/releases/download/v${BUILDX_VERSION}/buildx-v${BUILDX_VERSION}.linux-${TARGETARCH:-amd64}"; \
+    echo "${BUILDX_SHA256}  /tmp/docker-buildx" | sha256sum -c -; \
+    chmod +x /tmp/docker-buildx
+
 # ---- runtime ------------------------------------------------------------
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
@@ -25,7 +48,16 @@ WORKDIR /app
 # e "latest" bare não existem no registry, então nada de atalho aqui.
 COPY --from=docker:29-cli               /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker/compose-bin:v5.4.0   /docker-compose  /usr/local/libexec/docker/cli-plugins/docker-compose
-COPY --from=docker/buildx-bin:v0.36     /buildx          /usr/local/libexec/docker/cli-plugins/docker-buildx
+COPY --from=buildx-download /tmp/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+
+# node:24-bookworm-slim NÃO vem com ca-certificates — o Node tem sua própria
+# lista de CAs embutida (por isso o resto da API funciona sem isso), mas o
+# `docker`/`buildx` são binários Go que leem o trust store do SO. Sem isso,
+# toda resolução de imagem TLS (`docker compose build` contra o Docker Hub)
+# falha com "x509: certificate signed by unknown authority".
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN docker compose version && docker buildx version
 
 ENV NODE_ENV=production
