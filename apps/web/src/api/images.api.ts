@@ -31,4 +31,6 @@ export const imagesApi = {
   pull: (ref: string) => http.post<{ taskId: string }>("/images/pull", { ref }),
 
   build: (body: BuildImageBody) => http.post<{ taskId: string }>("/images/build", body),
+
+  scan: (id: string) => http.post<{ taskId: string }>(`/images/${id}/scan`),
 };

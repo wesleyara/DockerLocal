@@ -78,6 +78,7 @@ Eventos do stream de logs:
 | POST | `/api/images/prune` | `{ danglingOnly?: boolean }` |
 | POST | `/api/images/pull` | `{ ref: "nginx:alpine" }` → `202 {taskId}` |
 | POST | `/api/images/build` | ↓ → `202 {taskId}` |
+| POST | `/api/images/:id/scan` | — → `202 {taskId}` |
 
 ```jsonc
 // POST /api/images/build
@@ -88,6 +89,8 @@ Eventos do stream de logs:
   "target": null, "noCache": false,
   "engine": "cli" }                        // "cli" (BuildKit, padrão) | "api" (dockerode, fallback)
 ```
+
+`POST /:id/scan` roda `aquasec/trivy` (imagem oficial, versão travada em `docs/decisoes.md`) como container sibling via `docker run` + o mesmo socket do app — nunca um binário instalado no host (ver ADR-12). A `Task` termina com `meta.scan` no formato `ImageScanResult` (`packages/shared`): contagem por severidade + lista de `ImageVulnerability` (CVE, pacote, versão instalada/corrigida) + `cleanPackages` (pacotes do SBOM, via `--list-all-pkgs`, sem nenhuma CVE conhecida). Primeira execução baixa a imagem do Trivy e o DB de CVEs — pode levar minutos; scans seguintes usam o volume nomeado `dockerlocal_trivy_cache` e ficam rápidos.
 
 ---
 

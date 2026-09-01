@@ -16,6 +16,7 @@ import { ImagesService } from './images.service';
 import { ImagePullService } from './image-pull.service';
 import { ImageBuildCliService } from './image-build-cli.service';
 import { ImageBuildService } from './image-build.service';
+import { ImageScanService } from './image-scan.service';
 import { listImagesQuerySchema } from './dto/list-images.dto';
 import { removeImageQuerySchema } from './dto/remove-image.dto';
 import { tagImageBodySchema } from './dto/tag-image.dto';
@@ -34,6 +35,7 @@ export class ImagesController {
     private readonly imagePull: ImagePullService,
     private readonly imageBuildCli: ImageBuildCliService,
     private readonly imageBuild: ImageBuildService,
+    private readonly imageScan: ImageScanService,
   ) {}
 
   @Post('pull')
@@ -90,6 +92,12 @@ export class ImagesController {
     @Query(new ZodValidationPipe(removeImageQuerySchema)) query: unknown,
   ) {
     return this.imagesService.remove(id, query as never);
+  }
+
+  @Post(':id/scan')
+  @HttpCode(202)
+  async scan(@Param('id') id: string): Promise<{ taskId: string }> {
+    return { taskId: await this.imageScan.start(id) };
   }
 
   @Post('prune')

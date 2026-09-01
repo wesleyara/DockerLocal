@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Icon } from "@iconify/vue";
-import type { TaskStatus } from "@dockerlocal/shared";
+import type { ImageScanResult, TaskStatus } from "@dockerlocal/shared";
 import { useTasksStore } from "@/stores/tasks.store";
 import { useToast } from "@/composables/useToast";
 import TaskOutput from "./TaskOutput.vue";
 import PullProgress from "./PullProgress.vue";
+import ScanResult from "./ScanResult.vue";
 
 const store = useTasksStore();
 const toast = useToast();
 
 const task = computed(() => (store.selectedId ? store.tasks.get(store.selectedId) : undefined));
 const lines = computed(() => (store.selectedId ? store.linesFor(store.selectedId) : []));
+
+const scanResult = computed<ImageScanResult | undefined>(() => {
+  if (task.value?.kind !== "image-scan" || task.value.status !== "succeeded") return undefined;
+  return task.value.meta?.scan as ImageScanResult | undefined;
+});
 
 const statusTone: Record<TaskStatus, string> = {
   running: "text-blue-600 dark:text-blue-400",
@@ -42,7 +48,7 @@ async function handleCancel(): Promise<void> {
     <div v-if="store.drawerOpen" class="fixed inset-0 z-40 flex justify-end">
       <div class="absolute inset-0 bg-black/30" @click="store.close()" />
       <div
-        class="relative flex h-full w-full max-w-lg flex-col border-l border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
+        class="relative flex h-full w-full max-w-3xl flex-col border-l border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
       >
         <div class="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
           <Icon
@@ -77,8 +83,9 @@ async function handleCancel(): Promise<void> {
           {{ task.message }}
         </p>
 
+        <ScanResult v-if="scanResult" :result="scanResult" />
         <PullProgress
-          v-if="task && ['image-pull', 'compose-up', 'compose-pull'].includes(task.kind)"
+          v-else-if="task && ['image-pull', 'compose-up', 'compose-pull'].includes(task.kind)"
           :lines="lines"
         />
         <TaskOutput v-else :lines="lines" />
