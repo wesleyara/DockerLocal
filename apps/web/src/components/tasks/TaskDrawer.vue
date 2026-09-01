@@ -77,7 +77,10 @@ async function handleCancel(): Promise<void> {
           {{ task.message }}
         </p>
 
-        <PullProgress v-if="task?.kind === 'image-pull'" :lines="lines" />
+        <PullProgress
+          v-if="task && ['image-pull', 'compose-up', 'compose-pull'].includes(task.kind)"
+          :lines="lines"
+        />
         <TaskOutput v-else :lines="lines" />
       </div>
     </div>

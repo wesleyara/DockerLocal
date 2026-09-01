@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import type { ContainerSummary } from "@dockerlocal/shared";
 import { Icon } from "@iconify/vue";
 import { useContainersStore } from "@/stores/containers.store";
+import { useStacksStore } from "@/stores/stacks.store";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { ApiError } from "@/api/http";
@@ -15,15 +16,21 @@ const props = defineProps<{
 }>();
 
 const store = useContainersStore();
+const stacks = useStacksStore();
 const router = useRouter();
 const { confirm } = useConfirm();
 const toast = useToast();
 
 const busy = ref(false);
+const rebuilding = ref(false);
 
 const startable = computed(() => props.items.filter((c) => c.state !== "running"));
 const stoppable = computed(() => props.items.filter((c) => c.state === "running" && !c.isSelf));
 const removable = computed(() => props.items.filter((c) => !c.isSelf));
+// Grupo "Sem projeto" não tem compose file para rebuildar; a própria stack
+// do DockerLocal não pode se derrubar/recriar no meio do próprio request.
+const isSelfGroup = computed(() => props.items.some((c) => c.isSelf));
+const canRebuild = computed(() => props.project !== "" && !isSelfGroup.value);
 
 function openLogs(): void {
   router.push({
@@ -54,6 +61,20 @@ async function stopAll(): Promise<void> {
     reportFailures(results, "parar");
   } finally {
     busy.value = false;
+  }
+}
+
+// Reaproveita o `up` da stack (que já suporta --build e --force-recreate)
+// para rebuildar as imagens e recriar os containers do grupo — equivalente
+// a `docker compose up --build` direto da tela de Containers.
+async function rebuildGroup(): Promise<void> {
+  rebuilding.value = true;
+  try {
+    await stacks.act(props.project, "up", { build: true, forceRecreate: true });
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Falha ao rebuildar grupo");
+  } finally {
+    rebuilding.value = false;
   }
 }
 
@@ -131,6 +152,16 @@ async function removeAll(): Promise<void> {
     >
       <Icon icon="lucide:square" class="h-3.5 w-3.5" />
       Parar todos
+    </button>
+    <button
+      v-if="canRebuild"
+      title="Rebuildar imagens e recriar os containers do grupo (docker compose up --build)"
+      class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-40 dark:text-blue-400 dark:hover:bg-blue-950"
+      :disabled="busy || rebuilding"
+      @click="rebuildGroup"
+    >
+      <Icon icon="lucide:hammer" class="h-3.5 w-3.5" />
+      Rebuild
     </button>
     <button
       title="Remover todos os containers do grupo permanentemente (o próprio DockerLocal, se estiver no grupo, é preservado)"

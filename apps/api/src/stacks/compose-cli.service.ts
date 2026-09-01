@@ -10,6 +10,17 @@ import { LineSplitter } from '../common/utils/line-splitter';
 
 const KILL_GRACE_MS = 10_000;
 
+interface ComposeJsonEvent {
+  id?: string;
+  status?: 'Working' | 'Done' | 'Error';
+  text?: string;
+  details?: string;
+  current?: number;
+  total?: number;
+  error?: boolean;
+  message?: string;
+}
+
 export interface RunOptions {
   project: string;
   kind: string;
@@ -17,6 +28,14 @@ export interface RunOptions {
   workingDir: string;
   configFiles: string[];
   args: string[];
+  /** Flag global do compose (`--env-file <f>`) — precisa vir antes do subcomando. */
+  envFile?: string;
+  /**
+   * `json` emite progresso por camada (id/status/current/total), igual à
+   * Engine API usada no pull de imagens — usado por `up`/`pull` para a UI
+   * renderizar como PullProgress. Outros comandos ficam em texto (`plain`).
+   */
+  progress?: 'plain' | 'json';
   /** Só usado pelo `down`: se o compose file sumiu, tenta sem `-f`. */
   fallbackOnMissingFiles?: boolean;
   /** Avisos emitidos como primeiras linhas da task (stderr), antes do spawn. */
@@ -122,6 +141,8 @@ export class ComposeCliService {
         opts.project,
         files,
         opts.args,
+        opts.envFile,
+        opts.progress ?? 'plain',
       );
       if (code === 0) {
         handle.succeed({ project: opts.project });
@@ -143,6 +164,8 @@ export class ComposeCliService {
     project: string,
     configFiles: string[],
     args: string[],
+    envFile?: string,
+    progress: 'plain' | 'json' = 'plain',
   ): Promise<number> {
     return new Promise((resolvePromise) => {
       const child = spawn(
@@ -150,11 +173,12 @@ export class ComposeCliService {
         [
           'compose',
           '--progress',
-          'plain',
+          progress,
           '--ansi',
           'never',
           '-p',
           project,
+          ...(envFile ? ['--env-file', envFile] : []),
           ...configFiles.flatMap((f) => ['-f', f]),
           ...args,
         ],
@@ -171,16 +195,23 @@ export class ComposeCliService {
         },
       );
 
+      const emitLine =
+        progress === 'json'
+          ? (stream: 'stdout' | 'stderr', line: string) =>
+              this.emitComposeJsonLine(handle, stream, line)
+          : (stream: 'stdout' | 'stderr', line: string) =>
+              handle.emit(stream, line);
+
       child.stdout.setEncoding('utf8');
       child.stderr.setEncoding('utf8');
       // O progresso do compose sai no stderr — nunca trate como erro aqui,
       // só o exit code decide sucesso ou falha.
       child.stdout
         .pipe(new LineSplitter())
-        .on('data', (t: string) => handle.emit('stdout', t));
+        .on('data', (t: string) => emitLine('stdout', t));
       child.stderr
         .pipe(new LineSplitter())
-        .on('data', (t: string) => handle.emit('stderr', t));
+        .on('data', (t: string) => emitLine('stderr', t));
 
       const onAbort = () => {
         child.kill('SIGINT');
@@ -199,6 +230,45 @@ export class ComposeCliService {
         handle.emit('stderr', err.message);
         resolvePromise(-1);
       });
+    });
+  }
+
+  /**
+   * `--progress json` emite um evento por linha (id/status/text/current/total),
+   * igual em formato à Engine API do pull de imagens — reaproveita a mesma UI
+   * (PullProgress no front). Linha que não é JSON válido (raro, mas acontece
+   * em avisos pontuais) cai como texto puro.
+   */
+  private emitComposeJsonLine(
+    handle: TaskHandle,
+    stream: 'stdout' | 'stderr',
+    line: string,
+  ): void {
+    let event: ComposeJsonEvent;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      handle.emit(stream, line);
+      return;
+    }
+
+    if (event.error || (!event.id && event.message)) {
+      handle.emit(stream, event.message ?? line);
+      return;
+    }
+
+    if (!event.id || !event.text) {
+      handle.emit(stream, line);
+      return;
+    }
+
+    const text = [event.text, event.details].filter(Boolean).join(' ');
+    handle.emit(stream, `${event.id} ${text}`, {
+      id: event.id,
+      status: event.text,
+      current: event.current,
+      total: event.total,
+      done: event.status === 'Done',
     });
   }
 

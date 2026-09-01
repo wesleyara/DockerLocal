@@ -7,6 +7,7 @@ import StateBadge from "@/components/common/StateBadge.vue";
 import SelfBadge from "@/components/common/SelfBadge.vue";
 import RelativeTime from "@/components/common/RelativeTime.vue";
 import ActionButtons from "@/components/common/ActionButtons.vue";
+import CopyableText from "@/components/common/CopyableText.vue";
 import { useSortableTable } from "@/composables/useSortableTable";
 import { computed } from "vue";
 
@@ -55,7 +56,7 @@ function portUrl(p: { public?: number; private: number; type: string }): string 
           <SelfBadge v-if="item.isSelf" />
         </span>
       </td>
-      <td class="px-3 py-2 text-slate-500">{{ item.image }}</td>
+      <td class="px-3 py-2 text-slate-500"><CopyableText :text="item.image" max-width="220px" /></td>
       <td class="px-3 py-2"><StateBadge :state="item.state" /></td>
       <td class="px-3 py-2 text-slate-500">
         <span v-if="item.ports.length === 0">—</span>

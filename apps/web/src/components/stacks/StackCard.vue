@@ -35,6 +35,17 @@ async function run(action: "up" | "down" | "restart"): Promise<void> {
   }
 }
 
+// "Rebuild" reaproveita o `up` (que já suporta --build e --force-recreate)
+// em vez de `restart` — `docker compose restart` sozinho não rebuilda
+// imagem nenhuma.
+async function handleRebuild(): Promise<void> {
+  try {
+    await store.act(props.stack.project, "up", { build: true, forceRecreate: true });
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Falha ao rebuildar stack");
+  }
+}
+
 async function handleDown(): Promise<void> {
   const ok = await confirm({
     title: `Derrubar "${props.stack.project}"`,
@@ -140,6 +151,15 @@ async function handleRemoveFromRegistry(): Promise<void> {
         >
           <Icon icon="lucide:rotate-cw" class="h-3.5 w-3.5" />
           Restart
+        </button>
+        <button
+          :disabled="stack.isSelf"
+          :title="stack.isSelf ? 'Não é possível reiniciar a própria stack do DockerLocal' : 'Rebuildar imagens e recriar os containers (docker compose up --build)'"
+          class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-blue-400 dark:hover:bg-blue-950"
+          @click="handleRebuild"
+        >
+          <Icon icon="lucide:hammer" class="h-3.5 w-3.5" />
+          Rebuild
         </button>
         <button
           v-if="stack.containerCount > 0"

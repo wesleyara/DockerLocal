@@ -13,6 +13,7 @@ interface Layer {
   status: string;
   current?: number;
   total?: number;
+  done?: boolean;
 }
 
 const DONE_STATUSES = new Set(["Already exists", "Pull complete"]);
@@ -21,8 +22,8 @@ const layers = computed<Layer[]>(() => {
   const byId = new Map<string, Layer>();
   for (const line of props.lines) {
     if (!line.progress) continue;
-    const { id, status, current, total } = line.progress;
-    byId.set(id, { id, status, current, total });
+    const { id, status, current, total, done } = line.progress;
+    byId.set(id, { id, status, current, total, done });
   }
   return [...byId.values()];
 });
@@ -43,7 +44,7 @@ function percent(layer: Layer): number | undefined {
 }
 
 function isDone(layer: Layer): boolean {
-  return DONE_STATUSES.has(layer.status);
+  return layer.done ?? DONE_STATUSES.has(layer.status);
 }
 </script>
 

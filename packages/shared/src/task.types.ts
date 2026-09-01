@@ -5,6 +5,8 @@ export interface TaskLineProgress {
   status: string;
   current?: number;
   total?: number;
+  /** Quando a fonte informa o estado explicitamente (ex.: compose `--progress json`). */
+  done?: boolean;
 }
 
 export interface TaskLine {

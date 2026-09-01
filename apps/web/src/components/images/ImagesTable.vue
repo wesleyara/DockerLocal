@@ -6,6 +6,7 @@ import SortableHeader from "@/components/common/SortableHeader.vue";
 import RelativeTime from "@/components/common/RelativeTime.vue";
 import ActionButtons from "@/components/images/ActionButtons.vue";
 import SelfBadge from "@/components/common/SelfBadge.vue";
+import CopyableText from "@/components/common/CopyableText.vue";
 import { formatBytes } from "@/utils/format";
 import { useSortableTable } from "@/composables/useSortableTable";
 
@@ -41,7 +42,7 @@ const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
             :key="tag"
             class="rounded-app-sm bg-slate-100 px-1.5 py-0.5 font-mono text-xs dark:bg-slate-800"
           >
-            {{ tag }}
+            <CopyableText :text="tag" max-width="260px" />
           </span>
           <span
             v-if="item.dangling"

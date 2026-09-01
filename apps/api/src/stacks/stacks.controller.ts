@@ -140,7 +140,6 @@ export class StacksController {
     }
 
     const args = ['up', '-d', '--remove-orphans'];
-    if (envFile) args.push('--env-file', envFile);
 
     return respond(
       this.composeCli.tryStart({
@@ -150,6 +149,8 @@ export class StacksController {
         workingDir,
         configFiles: [composeFilePath],
         args,
+        envFile,
+        progress: 'json',
         preflightWarnings,
       }),
     );
@@ -213,6 +214,7 @@ export class StacksController {
         workingDir: target.workingDir,
         configFiles: target.configFiles,
         args,
+        progress: 'json',
       }),
     );
   }
@@ -432,6 +434,7 @@ export class StacksController {
         workingDir: target.workingDir,
         configFiles: target.configFiles,
         args: [action, ...(services ?? [])],
+        progress: action === 'pull' ? 'json' : undefined,
       }),
     );
   }
