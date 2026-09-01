@@ -6,6 +6,7 @@ import { ImagesService } from './images.service';
 import { ImagePullService } from './image-pull.service';
 import { ImageBuildCliService } from './image-build-cli.service';
 import { ImageBuildService } from './image-build.service';
+import { ImageScanService } from './image-scan.service';
 
 @Module({
   imports: [TasksModule, FilesystemModule],
@@ -15,6 +16,7 @@ import { ImageBuildService } from './image-build.service';
     ImagePullService,
     ImageBuildCliService,
     ImageBuildService,
+    ImageScanService,
   ],
 })
 export class ImagesModule {}

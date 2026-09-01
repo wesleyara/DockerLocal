@@ -206,15 +206,21 @@ export class StacksController {
     if (body.pull) args.push('--pull', body.pull);
     if (body.services?.length) args.push(...body.services);
 
+    // Com `--build`, o BuildKit emite seu próprio JSON de progresso
+    // (vertexes/statuses/logs), que não é o formato de camada de pull que
+    // `emitComposeJsonLine` entende — a linha crua vazava pra UI. Igual ao
+    // build de imagem e ao `compose build`, build sempre vai em texto plano;
+    // o kind diferente manda o front pro TaskOutput (scrollback) em vez do
+    // PullProgress, que só mostra a última linha sem `.progress`.
     return respond(
       this.composeCli.tryStart({
         project: params.project,
-        kind: 'compose-up',
+        kind: body.build ? 'compose-up-build' : 'compose-up',
         label: `up ${params.project}`,
         workingDir: target.workingDir,
         configFiles: target.configFiles,
         args,
-        progress: 'json',
+        progress: body.build ? 'plain' : 'json',
       }),
     );
   }

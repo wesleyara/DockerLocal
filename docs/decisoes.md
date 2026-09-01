@@ -139,6 +139,24 @@ A fase 9 original previa uma CLI própria (`dockerlocal up/down/status/...`, est
 
 ---
 
+## ADR-12 — Scan de vulnerabilidades: Trivy como container sibling, não `docker scan`
+
+`docker scan` (plugin da Snyk) foi descontinuado pela Docker Inc. e não existe mais no CLI a partir do Docker 25 — não é uma opção viável, mesmo sendo o que o usuário pediu por analogia ao Docker Desktop. `docker scout` é o substituto oficial, mas é plugin à parte, normalmente pede login/conta Docker Hub para o uso completo e também não vem instalado.
+
+**Decisão:** usar a imagem oficial `aquasec/trivy` (versão travada abaixo), executada como container "sibling" via `docker run` com o mesmo socket que o app já usa — nunca instalada como binário no host nem embutida na imagem do próprio app.
+
+**Por quê esse formato:** o app já tem o `docker` CLI no PATH (dev local) e no `Dockerfile` (runtime em container) para compose/build — reaproveitar isso pra rodar o scanner via `docker run` evita adicionar mais um binário para gerenciar/atualizar/pinar, e funciona igual nos dois ambientes sem tocar no `Dockerfile`.
+
+**A pegadinha do path do socket:** como quem resolve os bind mounts do `docker run` é sempre o daemon do HOST (mesmo quando o comando é disparado de dentro do container do app, via socket montado — o clássico "Docker-outside-of-Docker"), o volume de cache do Trivy (`/root/.cache/`, onde fica o DB de CVEs, dezenas de MB) **precisa ser um volume nomeado** (`dockerlocal_trivy_cache`), nunca um bind mount por path — um bind mount aqui exigiria o mesmo espelhamento de path host/container que `PROJECTS_ROOT` usa (ADR de compose), o que não vale a pena só pra um diretório de cache. Volume nomeado é criado automaticamente no primeiro `docker run -v nome:path` e funciona igual em dev e em container.
+
+**Consequência:** a primeira execução baixa a imagem do Trivy (~170 MB) e o DB de CVEs — pode levar minutos e aparece como progresso no `stderr` da Task, igual ao aviso de contexto de build grande. Scans seguintes reaproveitam o volume de cache e ficam na casa de segundos.
+
+**Escopo do MVP:** só `--scanners vuln` (CVEs de pacotes de SO e de lockfiles) — sem secret scanning nem misconfig do Trivy, que são scanners separados e mais lentos.
+
+**Pacotes sem CVE:** `--list-all-pkgs` traz o SBOM inteiro (SO + lockfiles), não só o que tem vulnerabilidade — cruzado em `normalize()` com a lista de vulnerabilidades por `target` pra render a aba "Sem CVE" da UI. Sem isso o trivy só devolve os pacotes vulneráveis, e a pergunta "essa imagem tem X sem CVE conhecida?" ficava sem resposta. Dedup por `target+nome+versão`: o mesmo pacote npm aparece várias vezes em instalações vendorizadas (ex.: `node_modules` aninhado por pnpm).
+
+---
+
 ## Versões travadas
 
 Verificadas no registry em 2026-08-25.
@@ -159,6 +177,7 @@ Verificadas no registry em 2026-08-25.
 | `ignore` | 7.0.6 |
 | `@xterm/xterm` | 6.0.0 (fase 10) |
 | `socket.io` | 4.8.3 (fase 10) |
+| `aquasec/trivy` (imagem Docker) | 0.74.0 |
 
 **Aviso sobre `@types/dockerode`:** a tipagem não cobre tudo da API 1.55 e mente em pontos importantes — `container.logs()` devolve `Readable` com `follow:true` e `Buffer` sem, mas o tipo não distingue. Trate dockerode como fonte não tipada na fronteira do service e normalize para os tipos de `packages/shared`. **Nunca vaze `Dockerode.ContainerInfo` para o frontend.**
 
