@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import type Docker from 'dockerode';
 import type { VolumeSummary, VolumesListResult } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
+import { SelfDetectService } from '../docker/self-detect.service';
 import { RemoveVolumeQuery } from './dto/remove-volume.dto';
 import { CreateVolumeBody } from './dto/create-volume.dto';
 import { PruneVolumesBody } from './dto/prune-volumes.dto';
@@ -13,7 +14,10 @@ type VolumeInspectInfoRaw = Docker.VolumeInspectInfo & { CreatedAt?: string };
 
 @Injectable()
 export class VolumesService {
-  constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
+  constructor(
+    @Inject(DOCKER_CLIENT) private readonly docker: Docker,
+    private readonly selfDetect: SelfDetectService,
+  ) {}
 
   async list(): Promise<VolumesListResult> {
     const [{ Volumes, Warnings }, containers] = await Promise.all([
@@ -52,6 +56,11 @@ export class VolumesService {
   }
 
   async remove(name: string, query: RemoveVolumeQuery): Promise<void> {
+    if (this.selfDetect.isSelfVolume(name)) {
+      throw new ForbiddenException(
+        'Não é possível remover um volume usado pelo próprio container do DockerLocal.',
+      );
+    }
     await this.docker.getVolume(name).remove({ force: query.force ?? false });
   }
 
@@ -72,6 +81,7 @@ export class VolumesService {
       project: labels[COMPOSE_PROJECT_LABEL],
       usedBy,
       size: v.UsageData?.Size,
+      isSelf: this.selfDetect.isSelfVolume(v.Name),
     };
   }
 }

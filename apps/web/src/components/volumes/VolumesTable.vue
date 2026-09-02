@@ -3,6 +3,7 @@ import { computed } from "vue";
 import type { VolumeSummary } from "@dockerlocal/shared";
 import ResourceTable from "@/components/common/ResourceTable.vue";
 import SortableHeader from "@/components/common/SortableHeader.vue";
+import SelfBadge from "@/components/common/SelfBadge.vue";
 import ActionButtons from "@/components/volumes/ActionButtons.vue";
 import { useSortableTable } from "@/composables/useSortableTable";
 
@@ -30,7 +31,12 @@ const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
       <th class="px-3 py-2 col-label text-right text-slate-500 dark:text-slate-400">Ações</th>
     </template>
     <template #row="{ item, pending: rowPending }">
-      <td class="px-3 py-2 font-medium">{{ item.name }}</td>
+      <td class="px-3 py-2 font-medium">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span>{{ item.name }}</span>
+          <SelfBadge v-if="item.isSelf" />
+        </div>
+      </td>
       <td class="px-3 py-2 text-slate-500">{{ item.driver }}</td>
       <td class="px-3 py-2 text-slate-500">{{ item.project ?? "—" }}</td>
       <td class="px-3 py-2 text-slate-500">

@@ -17,18 +17,19 @@ Cuidado com o orçamento de conexões SSE (máx. 3 por aba). Stats de vários co
 
 > Skill: `nest-sse` (seção "Orçamento de conexões")
 
-## 10.2 Terminal exec
+## 10.2 Terminal exec — ☑ concluído
 
 O único caso genuinamente bidirecional do app — **aqui o WebSocket se paga** (ADR-04).
 
-- [ ] `socket.io` num Gateway do Nest em `/ws/exec`
-- [ ] `container.exec({ AttachStdin, AttachStdout, AttachStderr, Tty: true, Cmd })` + `start({ hijack: true, stdin: true })`
-- [ ] Detectar shell disponível: tentar `/bin/bash`, cair para `/bin/sh` (imagens alpine não têm bash)
-- [ ] `@xterm/xterm` no front com `FitAddon`
-- [ ] Propagar resize: `exec.resize({ h, w })` a cada mudança de tamanho, senão o `vim` desenha errado
-- [ ] Fechar o exec no disconnect do socket — mesmo cuidado de teardown dos logs
+- [x] `socket.io` num Gateway do Nest em `/ws/exec` (`apps/api/src/exec/exec.gateway.ts`)
+- [x] `container.exec({ AttachStdin, AttachStdout, AttachStderr, Tty: true, Cmd })` + `start({ hijack: true, stdin: true })`
+- [x] Detectar shell disponível: tentar `/bin/bash`, cair para `/bin/sh` (imagens alpine não têm bash) — via `if [ -x /bin/bash ]` no `sh -c`, não `exec ... || fallback` (busybox `ash` mata o shell com exit 127 antes de chegar no `||`)
+- [x] `@xterm/xterm` no front com `FitAddon` (`ContainerConsoleView.vue`)
+- [x] Propagar resize: `exec.resize({ h, w })` a cada mudança de tamanho
+- [x] Fechar o exec no disconnect do socket — mesmo cuidado de teardown dos logs
+- [x] Validação de Origin/Host no handshake — WebSocket do browser não manda `X-DockerLocal`, então só o Origin protege aqui
 
-Com `Tty: true` o stream **não é multiplexado** — não use `demuxStream` aqui.
+Com `Tty: true` o stream **não é multiplexado** — `demuxStream` não é usado aqui.
 
 ## 10.3 Inspect / detalhes
 
@@ -51,6 +52,27 @@ Quarta aba, mesmo padrão das outras.
 - [ ] Formulário: imagem, nome, portas, env, volumes, restart policy, network
 - [ ] `POST /api/containers/create` → `docker.createContainer()`
 - [ ] Preview do `docker run` equivalente antes de confirmar
+
+## 10.6 Scan de vulnerabilidades — ☑ concluído
+
+Não estava no backlog original — pedido por analogia ao "Docker Scan" do Docker Desktop, que foi descontinuado. Ver ADR-12.
+
+- [x] Trivy (`aquasec/trivy`) como container sibling via `docker run` no mesmo socket, nunca instalado no host nem embutido na imagem do app
+- [x] Cache de DB de CVEs em volume nomeado (`dockerlocal_trivy_cache`) — bind mount não funciona por causa do path do host no Docker-outside-of-Docker
+- [x] Task de scan (`image-scan.service.ts`) com progresso via Task/SSE, igual pull/build
+- [x] `ScanResult.vue` no drawer: vulnerabilidades por severidade + aba "Sem CVE" (SBOM completo cruzado com a lista de vulnerabilidades, dedup por `target+nome+versão`)
+- [x] Escopo MVP: só `--scanners vuln` — sem secret scanning nem misconfig
+
+## 10.7 Outras entregas fora do backlog original
+
+Trabalho feito durante as fases 6-10 que não estava previsto nos arquivos de fase, registrado aqui para não se perder:
+
+- [x] **Progresso por camada no pull de imagens e no `compose up`** — `image-pull.service.ts` e `compose-cli.service.ts` emitem progresso estruturado (`id/status/current/total`) via `--progress json`; `PullProgress.vue` reaproveitado nos dois casos
+- [x] **Rebuild de stack/grupo** — botão `up --build --force-recreate` em `StackCard.vue` e `GroupActionButtons.vue` (containers agrupados por projeto compose)
+- [x] **`CopyableText.vue`** — clique para copiar em tags de imagem e nomes longos nas tabelas
+- [x] **Filtro do file browser por modo** — `FileList.vue` só lista entradas relevantes ao contexto (Dockerfile vs. compose), evitando ruído de `node_modules` e afins
+- [x] **UX de import de stack** — detecção automática de `.env` na mesma pasta do compose escolhido, em vez de exigir seleção manual; mensagem explicativa no seletor de pastas quando não há raiz configurada ainda
+- [x] **Proteção contra auto-remoção estendida a volumes nomeados** — `SelfDetectService.isSelfVolume()` cobre os volumes montados pelo próprio container (ex. `dockerlocal_data`), bloqueando `DELETE /api/volumes/:name` com 403 do mesmo jeito que já valia para containers/stacks/imagens (ADR-09); não cobre volumes de recursos sibling descartáveis como o cache do trivy
 
 ## Ideias sem prioridade
 
