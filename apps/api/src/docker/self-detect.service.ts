@@ -30,6 +30,7 @@ export class SelfDetectService implements OnModuleInit {
   private containerId: string | null = null;
   private imageId: string | null = null;
   private names: string[] = [];
+  private volumeNames = new Set<string>();
 
   constructor(@Inject(DOCKER_CLIENT) private readonly docker: Docker) {}
 
@@ -68,6 +69,15 @@ export class SelfDetectService implements OnModuleInit {
     const clean = ref.replace(/^sha256:/, '');
     const self = this.imageId.replace(/^sha256:/, '');
     return self === clean || self.startsWith(clean) || clean.startsWith(self);
+  }
+
+  /**
+   * Volumes nomeados montados pelo próprio container (ex.: `dockerlocal_data`).
+   * Não cobre volumes de recursos auxiliares como o cache do trivy — esses
+   * são de containers "sibling" descartáveis, nunca do container do app.
+   */
+  isSelfVolume(name: string): boolean {
+    return this.volumeNames.has(name);
   }
 
   private async detect(): Promise<void> {
@@ -113,6 +123,11 @@ export class SelfDetectService implements OnModuleInit {
     this.containerId = info.Id;
     this.imageId = info.Image;
     this.names = [info.Name.replace(/^\//, '')];
+    this.volumeNames = new Set(
+      (info.Mounts ?? [])
+        .filter((m) => m.Type === 'volume' && m.Name)
+        .map((m) => m.Name as string),
+    );
     this.logger.log(
       `Rodando como o próprio container do DockerLocal (${info.Id.slice(0, 12)})`,
     );

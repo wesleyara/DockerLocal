@@ -8,6 +8,7 @@ export interface VolumeSummary {
   /** Nomes dos containers (parados ou rodando) que montam este volume. */
   usedBy: string[];
   size?: number;
+  isSelf: boolean;
 }
 
 export interface VolumesListResult {

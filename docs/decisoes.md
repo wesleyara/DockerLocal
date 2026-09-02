@@ -108,6 +108,8 @@ Rodando empacotado, o DockerLocal aparece na própria lista de containers — se
 
 **Consequência:** `stop`/`restart`/`kill`/`remove` de container, `down`/`stop`/`restart` de stack e `remove` de imagem checam `isSelf` e voltam **403** em vez de deixar o request derrubar o processo que está respondendo a ele. O front espelha isso desabilitando os botões, mas o 403 no backend é quem garante — nunca confie só na UI.
 
+**Extensão a volumes:** o mesmo `adopt()` também guarda os nomes dos volumes nomeados montados pelo container (`info.Mounts` filtrado por `Type === 'volume'`) — cobre o `dockerlocal_data` do próprio compose. `isSelfVolume()` bloqueia `DELETE /api/volumes/:name` do mesmo jeito, com `VolumeSummary.isSelf` espelhado na UI. **Não** cobre volumes de recursos auxiliares descartáveis como o `dockerlocal_trivy_cache` (ADR-12) — só o que está de fato montado no container do app é protegido; o cache do trivy é de um container sibling e pode ser removido/recriado livremente.
+
 ---
 
 ## ADR-10 — Raízes do file browser: `.env` fixo + camada editável em runtime
