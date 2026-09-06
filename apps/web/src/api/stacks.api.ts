@@ -32,6 +32,8 @@ export const stacksApi = {
   build: (project: string, body: ComposeBuildBody = {}) =>
     http.post<{ taskId: string }>(`/stacks/${project}/build`, body),
 
+  selfRebuild: () => http.post<{ taskId: string }>("/stacks/self/rebuild"),
+
   removeFromRegistry: (project: string) =>
     http.delete<{ ok: boolean }>(`/stacks/${project}/registry`),
 };

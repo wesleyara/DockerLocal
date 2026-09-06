@@ -91,5 +91,24 @@ export const useStacksStore = defineStore("stacks", () => {
     await fetch(true);
   }
 
-  return { items, loading, error, pending, fetch, act, removeFromRegistry };
+  /**
+   * Rebuild da imagem + troca do próprio container do DockerLocal. A task
+   * acompanha só a fase de build — a troca em si mata este processo no meio
+   * (ver skill self-update no backend), então a conexão SSE cai sozinha
+   * quando o novo container assume; isso é esperado, não uma falha.
+   */
+  async function selfRebuild(): Promise<void> {
+    const tasks = useTasksStore();
+    const { taskId } = await stacksApi.selfRebuild();
+    tasks.track({
+      id: taskId,
+      kind: "compose-build",
+      label: "rebuild do próprio DockerLocal",
+      status: "running",
+      startedAt: Date.now(),
+    });
+    tasks.open(taskId);
+  }
+
+  return { items, loading, error, pending, fetch, act, removeFromRegistry, selfRebuild };
 });
