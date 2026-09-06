@@ -30,6 +30,7 @@ import {
 import { type LogQuery, logQuerySchema } from '../containers/dto/log-query.dto';
 import { StackDiscoveryService } from './stack-discovery.service';
 import { ComposeCliService, StartResult } from './compose-cli.service';
+import { SelfUpdateService } from './self-update.service';
 import { projectParamSchema, type ProjectParam } from './dto/project-param.dto';
 import {
   composeUpBodySchema,
@@ -79,11 +80,22 @@ export class StacksController {
     private readonly sessions: LogSessionService,
     private readonly pathSafety: PathSafetyService,
     private readonly tasks: TaskRegistryService,
+    private readonly selfUpdate: SelfUpdateService,
   ) {}
 
   @Get()
   async list(): Promise<StackSummary[]> {
     return this.discovery.list();
+  }
+
+  /**
+   * Rebuilda a imagem do próprio DockerLocal e troca o próprio container.
+   * Precisa vir antes de `:project` — "self" não é o nome de uma stack normal.
+   */
+  @Post('self/rebuild')
+  @HttpCode(202)
+  async selfRebuild(): Promise<{ taskId: string }> {
+    return this.selfUpdate.rebuild();
   }
 
   /**

@@ -51,6 +51,27 @@ export class StackDiscoveryService {
     );
   }
 
+  /** Acha o projeto/working_dir/config_files da stack que contém o próprio container — `null` fora de container. */
+  async selfStackTarget(): Promise<{
+    project: string;
+    workingDir: string;
+    configFiles: string[];
+  } | null> {
+    const groups = await this.rawGroups();
+    for (const [project, group] of groups) {
+      const first = group.containers.find((c) =>
+        this.selfDetect.isSelfContainer(c.Id),
+      );
+      if (!first) continue;
+      return {
+        project,
+        workingDir: first.Labels[L.workingDir] ?? '',
+        configFiles: splitConfigFiles(first.Labels[L.configFiles]),
+      };
+    }
+    return null;
+  }
+
   async list(): Promise<StackSummary[]> {
     const groups = await this.rawGroups();
     this.selfHealRegistry(groups);
