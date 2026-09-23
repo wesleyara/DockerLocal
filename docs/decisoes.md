@@ -159,6 +159,22 @@ A fase 9 original previa uma CLI própria (`dockerlocal up/down/status/...`, est
 
 ---
 
+## ADR-13 — Navegador de volumes: container helper `busybox`, não o mountpoint do host
+
+**Problema:** navegar/editar o conteúdo de um volume nomeado pela UI. O caminho óbvio — ler `Volume.Mountpoint` direto do disco — não existe: `/var/lib/docker/volumes/*` é `root:root 700`. Isso vale em dev nativo, no binário standalone (fase 9) e dentro do container do próprio app (que só monta o socket, não `/var/lib/docker`) — nenhum desses processos roda como root do host.
+
+**Decisão:** um container `busybox` "sibling" por volume, criado sob demanda (`VolumeHelperService`), com o volume montado em `/v` e **sem rede** (`NetworkMode: none`), rootfs somente leitura, `CapDrop: ALL` + only `CHOWN/DAC_OVERRIDE/DAC_READ_SEARCH/FOWNER/FSETID` — as duas últimas caps porque sem elas o helper não lê/escreve arquivos de um serviço rodando com outro uid (ex. Postgres, uid 70, diretórios `700`) mesmo sendo root *dentro* do container. Um helper por volume é reusado entre requests e removido depois de ~2 min ocioso, no shutdown do app, e antes de qualquer `remove`/`prune` do volume (senão o próprio helper segura o volume "em uso").
+
+**Divisão exec vs Archive API:** listar diretório e mutações que não movem bytes (`mkdir`, `mv`, `rm`, `chown`) vão por `container.exec()` com argv fixo — nunca com o path do usuário interpolado num `sh -c` dinâmico, mesma regra de "spawn com array" da regra 4 do `CLAUDE.md`, só que aqui o alvo é o rootfs descartável do helper, não o host. Ler/escrever bytes de arquivo (preview, download, upload, save) vai pela **Archive API** do dockerode (`getArchive`/`putArchive`, que fala HTTP com o daemon e devolve/recebe tar) — não dá pra fazer `cat`/`tee` via exec sem reimplementar controle de tamanho e binário na mão, e a Archive API já resolve isso em stream.
+
+**`PathSafetyService.resolveSafe()` não se aplica aqui.** Aquele serviço protege o filesystem do *host* contra um path vindo do cliente. Volumes navegam dentro do rootfs efêmero de um container helper — a proteção equivalente é o `realpath` feito *dentro* do helper (mesma exec que lista o diretório), que resolve `..` e symlink apontando pra fora de `/v` e responde `403` antes de qualquer `stat`. `toVolumePath()` só normaliza a entrada e rejeita o óbvio (NUL, path relativo) antes de gastar um exec.
+
+**Volume `isSelf` é sempre somente leitura:** monta com `ReadOnly: true` no helper, e a API também recusa qualquer mutação com `403` — defesa em profundidade, porque o `dockerlocal_data` guarda o `stacks.json` e o `DOCKER_CONFIG` do próprio app rodando.
+
+**Consequência:** primeiro acesso a um volume paga o custo de criar e iniciar um container (~1-2s, mais o pull do `busybox` na primeiríssima vez no host); acessos seguintes reusam o helper. O boot do app varre e remove qualquer helper órfão pela label (`com.dockerlocal.helper`) — cobre o caso de um crash anterior ter deixado um pra trás. Helpers são filtrados da aba Containers, do `usedBy` de volumes e do stream de eventos — são infraestrutura interna, não um recurso que o usuário criou.
+
+---
+
 ## Versões travadas
 
 Verificadas no registry em 2026-08-25.
@@ -176,10 +192,12 @@ Verificadas no registry em 2026-08-25.
 | `@tanstack/vue-virtual` | 3.13.36 |
 | `zod` | 4.4.3 |
 | `tar-fs` | 3.1.3 |
+| `tar-stream` | 3.2.0 (fase 10, navegador de volumes) |
 | `ignore` | 7.0.6 |
 | `@xterm/xterm` | 6.0.0 (fase 10) |
 | `socket.io` | 4.8.3 (fase 10) |
 | `aquasec/trivy` (imagem Docker) | 0.74.0 |
+| `busybox` (imagem Docker, helper de volume) | 1.37.0 |
 
 **Aviso sobre `@types/dockerode`:** a tipagem não cobre tudo da API 1.55 e mente em pontos importantes — `container.logs()` devolve `Readable` com `follow:true` e `Buffer` sem, mas o tipo não distingue. Trate dockerode como fonte não tipada na fronteira do service e normalize para os tipos de `packages/shared`. **Nunca vaze `Dockerode.ContainerInfo` para o frontend.**
 

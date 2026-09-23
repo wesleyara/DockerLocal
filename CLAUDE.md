@@ -23,7 +23,7 @@ Teto de projeto: **no máximo 3 SSE simultâneos por aba** (HTTP/1.1 limita a 6 
 Qualquer operação que demore e produza texto — build, `compose up`, `pull` — passa pelo `TaskRegistry`: o POST responde `202 {taskId}` na hora, e a saída sai por `GET /api/tasks/:id/stream`. Isso é o que faz um `up` de 3 minutos sobreviver a um F5.
 
 **4. Nada do cliente chega a um shell.**
-`spawn` com array de argumentos e `shell: false`, sempre. Zero `exec`/`execSync` com interpolação. Todo path vindo do cliente passa por `PathSafetyService.resolveSafe()` antes de qualquer uso.
+`spawn` com array de argumentos e `shell: false`, sempre. Zero `exec`/`execSync` com interpolação. Todo path vindo do cliente passa por `PathSafetyService.resolveSafe()` antes de qualquer uso — exceto dentro de um volume nomeado, onde não existe path de host: ali o path passa por `toVolumePath()` e o `realpath` roda dentro do container helper descartável (ver ADR-13).
 
 ## Comandos
 

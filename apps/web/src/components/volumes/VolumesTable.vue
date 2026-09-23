@@ -33,7 +33,12 @@ const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
     <template #row="{ item, pending: rowPending }">
       <td class="px-3 py-2 font-medium">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span>{{ item.name }}</span>
+          <router-link
+            :to="{ name: 'volume-files', params: { name: item.name, path: [] } }"
+            class="hover:text-[var(--color-accent)] hover:underline"
+          >
+            {{ item.name }}
+          </router-link>
           <SelfBadge v-if="item.isSelf" />
         </div>
       </td>

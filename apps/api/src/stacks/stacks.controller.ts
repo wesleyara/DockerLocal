@@ -59,6 +59,17 @@ interface SubscribedService {
   replay: ReturnType<LogSession['buffer']['toArray']>;
 }
 
+/** `docker compose config --format json` tem `services.<nome>.build` quando o serviço builda. */
+function hasBuildService(config: unknown): boolean {
+  if (!config || typeof config !== 'object') return false;
+  const services = (config as { services?: unknown }).services;
+  if (!services || typeof services !== 'object') return false;
+  return Object.values(services as Record<string, unknown>).some(
+    (svc) =>
+      !!svc && typeof svc === 'object' && 'build' in (svc as object),
+  );
+}
+
 function respond({ taskId, started }: StartResult): { taskId: string } {
   if (!started) {
     throw new ConflictException({
@@ -122,9 +133,12 @@ export class StacksController {
     }
 
     // `docker compose config` valida o arquivo e dá erro legível, em vez de
-    // uma falha críptica no meio do `up`.
+    // uma falha críptica no meio do `up`. Reaproveitado abaixo pra detectar
+    // serviço com `build:` — se existir, o `up` pode disparar o build da
+    // imagem na hora (mesmo sem `--build` explícito).
+    let config: unknown;
     try {
-      await this.composeCli.config(workingDir, [composeFilePath]);
+      config = await this.composeCli.config(workingDir, [composeFilePath]);
     } catch (err) {
       throw new BadRequestException(
         `Compose inválido: ${err instanceof Error ? err.message : 'erro desconhecido'}`,
@@ -153,16 +167,23 @@ export class StacksController {
 
     const args = ['up', '-d', '--remove-orphans'];
 
+    // Mesmo raciocínio do `up` de stack existente (ver comentário lá): se
+    // algum serviço tem `build:`, o compose pode buildar a imagem na hora e
+    // o BuildKit emite seu próprio texto plano — misturado ao parser de JSON
+    // de camada, vira uma linha só reescrita sem parar. Detectando aqui,
+    // manda pro TaskOutput (scrollback igual terminal) em vez do PullProgress.
+    const willBuild = hasBuildService(config);
+
     return respond(
       this.composeCli.tryStart({
         project,
-        kind: 'compose-up',
+        kind: willBuild ? 'compose-up-build' : 'compose-up',
         label: `up ${project}`,
         workingDir,
         configFiles: [composeFilePath],
         args,
         envFile,
-        progress: 'json',
+        progress: willBuild ? 'plain' : 'json',
         preflightWarnings,
       }),
     );
