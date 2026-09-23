@@ -106,6 +106,20 @@ Eventos do stream de logs:
 
 Cada volume vem enriquecido com `usedBy: string[]` e `compose?.project`. Montar `usedBy` exige cruzar com `listContainers({all:true})` e olhar `Mounts[].Name` — vale o custo: é a informação que evita o 409 cego.
 
+### Navegador de arquivos do volume
+
+| Método | Path | Payload |
+|---|---|---|
+| GET | `/api/volumes/:name/files?path=` | → `VolumeFsListResult` (`path` default `/`) |
+| GET | `/api/volumes/:name/files/read?path=` | → `VolumeFsReadResult` (prévia até 512 KB) |
+| GET | `/api/volumes/:name/files/download?path=` | stream — arquivo cru, ou `.tar` se `path` for diretório |
+| PUT | `/api/volumes/:name/files?path=&overwrite=&expectedMtime=` | body cru (`application/octet-stream`), `Content-Length` obrigatório, até 1 GiB |
+| POST | `/api/volumes/:name/files/mkdir` | `{ path }` |
+| POST | `/api/volumes/:name/files/rename` | `{ from, to }` |
+| DELETE | `/api/volumes/:name/files?path=` | `rm -rf` do path (recusa a raiz do volume) |
+
+Todo acesso passa por um container helper `busybox` sob demanda (ver ADR-13) — não existe path de host equivalente a `PathSafetyService.resolveSafe()` aqui, porque o "filesystem" navegado é o rootfs de um container descartável, não o do host. `PUT` sem `overwrite=true` em cima de um path existente responde `409 { canForce: true }`; com `expectedMtime` divergente do mtime atual, responde `409 { conflict: "modified" }`. Volume `isSelf` (o do próprio app) é sempre somente leitura — mutações voltam `403`.
+
 ---
 
 ## Stacks

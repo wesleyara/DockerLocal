@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import { stacksApi } from "@/api/stacks.api";
+import { tasksApi } from "@/api/tasks.api";
 import { fsApi } from "@/api/fs.api";
 import { useFileBrowser } from "@/composables/useFileBrowser";
 import { useTasksStore } from "@/stores/tasks.store";
@@ -109,13 +110,18 @@ async function submit(): Promise<void> {
       up: upNow.value,
     });
 
-    tasksStore.track({
+    // Busca a task real em vez de adivinhar o `kind`: o servidor decide entre
+    // `compose-up`/`compose-up-build` dependendo de o compose ter `build:` —
+    // adivinhar aqui deixaria o build preso na viewer errada (PullProgress)
+    // até a task terminar, quando o `task-end` corrigiria tarde demais.
+    const task = await tasksApi.get(taskId).catch(() => ({
       id: taskId,
       kind: upNow.value ? "compose-up" : "compose-register",
       label: `${upNow.value ? "up" : "registrar"} ${projectName.value || composeFilePath.value}`,
-      status: "running",
+      status: "running" as const,
       startedAt: Date.now(),
-    });
+    }));
+    tasksStore.track(task);
     tasksStore.open(taskId);
     void stacksStore.fetch(true);
     close();

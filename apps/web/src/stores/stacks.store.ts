@@ -8,6 +8,7 @@ import type {
   StackSummary,
 } from "@dockerlocal/shared";
 import { stacksApi } from "@/api/stacks.api";
+import { tasksApi } from "@/api/tasks.api";
 import { ApiError } from "@/api/http";
 import { useTasksStore } from "./tasks.store";
 
@@ -70,13 +71,18 @@ export const useStacksStore = defineStore("stacks", () => {
         throw err;
       }
 
-      tasks.track({
+      // `up` com `--build` vira `compose-up-build` no servidor (ver
+      // stacks.controller.ts) — busca a task real em vez de adivinhar o
+      // `kind`, senão o build fica preso na viewer de PullProgress até o
+      // `task-end` corrigir, quando a saída já era.
+      const task = await tasksApi.get(taskId).catch(() => ({
         id: taskId,
         kind: `compose-${action}`,
         label: `${action} ${project}`,
-        status: "running",
+        status: "running" as const,
         startedAt: Date.now(),
-      });
+      }));
+      tasks.track(task);
       tasks.open(taskId);
       void fetch(true);
     } finally {

@@ -50,6 +50,14 @@ async function handleRemove(): Promise<void> {
 
 <template>
   <div class="flex items-center justify-end gap-1">
+    <router-link
+      :to="{ name: 'volume-files', params: { name: volume.name, path: [] } }"
+      class="flex items-center gap-1 rounded-app-sm px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+      title="Explorar arquivos do volume"
+    >
+      <Icon icon="lucide:folder-open" class="h-3.5 w-3.5" />
+      Explorar
+    </router-link>
     <Icon v-if="pending" icon="lucide:loader-2" class="h-4 w-4 animate-spin text-slate-400" />
     <button
       v-else

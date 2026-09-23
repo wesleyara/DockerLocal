@@ -9,6 +9,7 @@ import type Docker from 'dockerode';
 import { BehaviorSubject, Subject } from 'rxjs';
 import type { DaemonEvent, DaemonEventType } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from './docker.provider';
+import { HELPER_LABEL } from './internal-labels';
 
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
@@ -112,6 +113,10 @@ export class DockerEventsService implements OnModuleInit, OnModuleDestroy {
 
     const actor = parsed.Actor ?? {};
     const attrs = actor.Attributes ?? {};
+
+    // Container helper do navegador de volumes — evento interno, não deve
+    // disparar refetch nem aparecer em lugar nenhum da UI.
+    if (attrs[HELPER_LABEL]) return;
 
     const event: DaemonEvent = {
       type: type as DaemonEventType,

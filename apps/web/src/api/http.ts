@@ -1,22 +1,26 @@
-const BASE_URL = "/api";
+export const BASE_URL = "/api";
 
 export interface ApiErrorPayload {
   statusCode: number;
   message: string;
   canForce?: boolean;
   taskId?: string;
+  /** Ex.: "modified" — o save de um arquivo do volume chegou tarde demais. */
+  conflict?: string;
 }
 
 export class ApiError extends Error {
   statusCode: number;
   canForce: boolean;
   taskId?: string;
+  conflict?: string;
 
   constructor(payload: ApiErrorPayload) {
     super(payload.message);
     this.statusCode = payload.statusCode;
     this.canForce = payload.canForce ?? false;
     this.taskId = payload.taskId;
+    this.conflict = payload.conflict;
   }
 }
 

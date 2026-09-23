@@ -3,6 +3,7 @@ import type Docker from 'dockerode';
 import type { ContainerSummary, ContainerState } from '@dockerlocal/shared';
 import { DOCKER_CLIENT } from '../docker/docker.provider';
 import { SelfDetectService } from '../docker/self-detect.service';
+import { HELPER_LABEL } from '../docker/internal-labels';
 import { ListContainersQuery } from './dto/list-containers.dto';
 import {
   KillContainerBody,
@@ -28,7 +29,11 @@ export class ContainersService {
   async list(query: ListContainersQuery): Promise<ContainerSummary[]> {
     const raw = await this.docker.listContainers({ all: query.all ?? false });
 
-    let summaries = raw.map((c) => this.normalize(c));
+    // Helper interno do navegador de volumes — não é um recurso que o
+    // usuário criou, esconder da aba Containers (ver volume-helper.service.ts).
+    let summaries = raw
+      .filter((c) => !c.Labels?.[HELPER_LABEL])
+      .map((c) => this.normalize(c));
 
     if (query.project) {
       summaries = summaries.filter((c) => c.compose?.project === query.project);

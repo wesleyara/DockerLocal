@@ -6,6 +6,7 @@ import { SelfDetectService } from '../docker/self-detect.service';
 import { RemoveVolumeQuery } from './dto/remove-volume.dto';
 import { CreateVolumeBody } from './dto/create-volume.dto';
 import { PruneVolumesBody } from './dto/prune-volumes.dto';
+import { HELPER_LABEL, VolumeHelperService } from './volume-helper.service';
 
 const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
 
@@ -17,6 +18,7 @@ export class VolumesService {
   constructor(
     @Inject(DOCKER_CLIENT) private readonly docker: Docker,
     private readonly selfDetect: SelfDetectService,
+    private readonly helper: VolumeHelperService,
   ) {}
 
   async list(): Promise<VolumesListResult> {
@@ -27,6 +29,9 @@ export class VolumesService {
 
     const usedBy = new Map<string, string[]>();
     for (const c of containers) {
+      // Helper de navegação de volume é interno — não deve fazer o volume
+      // parecer "em uso" e bloquear a remoção dele.
+      if (c.Labels?.[HELPER_LABEL]) continue;
       for (const mount of c.Mounts ?? []) {
         if (mount.Type !== 'volume' || !mount.Name) continue;
         const names = usedBy.get(mount.Name) ?? [];
@@ -61,10 +66,14 @@ export class VolumesService {
         'Não é possível remover um volume usado pelo próprio container do DockerLocal.',
       );
     }
+    // Se o navegador de volume abriu um helper para este volume, ele
+    // segura o volume "em uso" do ponto de vista do daemon — libera antes.
+    await this.helper.release(name);
     await this.docker.getVolume(name).remove({ force: query.force ?? false });
   }
 
   async prune(body: PruneVolumesBody): Promise<Docker.PruneVolumesInfo> {
+    await this.helper.releaseAll();
     const filters = body.all ? { all: ['true'] } : undefined;
     return this.docker.pruneVolumes(filters ? { filters } : {});
   }

@@ -35,6 +35,11 @@ const router = createRouter({
       component: () => import("@/views/VolumesView.vue"),
     },
     {
+      path: "/volumes/:name/files/:path(.*)*",
+      name: "volume-files",
+      component: () => import("@/views/VolumeFilesView.vue"),
+    },
+    {
       path: "/stacks",
       name: "stacks",
       component: () => import("@/views/StacksView.vue"),

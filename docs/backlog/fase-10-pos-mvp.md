@@ -74,6 +74,20 @@ Trabalho feito durante as fases 6-10 que não estava previsto nos arquivos de fa
 - [x] **UX de import de stack** — detecção automática de `.env` na mesma pasta do compose escolhido, em vez de exigir seleção manual; mensagem explicativa no seletor de pastas quando não há raiz configurada ainda
 - [x] **Proteção contra auto-remoção estendida a volumes nomeados** — `SelfDetectService.isSelfVolume()` cobre os volumes montados pelo próprio container (ex. `dockerlocal_data`), bloqueando `DELETE /api/volumes/:name` com 403 do mesmo jeito que já valia para containers/stacks/imagens (ADR-09); não cobre volumes de recursos sibling descartáveis como o cache do trivy
 
+## 10.9 Navegador de volumes — ☑ concluído
+
+Navegar, baixar, enviar e editar arquivos dentro de um volume nomeado, pela web, com URL própria (`/volumes/:name/files/...`).
+
+- [x] `VolumeHelperService` — container `busybox` sibling por volume, sob demanda, TTL ocioso de 2 min, reap de órfãos no boot (ver ADR-13)
+- [x] `VolumeFilesService` — listar via `exec` (argv fixo, `realpath` dentro do helper), ler/baixar/enviar via Archive API (`getArchive`/`putArchive`)
+- [x] Rotas `GET/PUT/DELETE /api/volumes/:name/files*` (listar, ler, baixar, enviar, criar pasta, renomear, apagar)
+- [x] Helper escondido de Containers, do `usedBy` de volumes e do stream de eventos
+- [x] Volume `isSelf` sempre somente leitura (helper monta `:ro`, API recusa mutação com 403)
+- [x] Upload com `Content-Length` obrigatório (até 1 GiB), conflito de nome vira `409` (`overwrite=true` sobrescreve), dono herdado da pasta pai
+- [x] Edição de texto com checagem de `mtime` — save tardio vira `409 conflict: "modified"`
+- [x] `VolumeFilesView.vue` — breadcrumb roteado, drag-and-drop, upload de pasta (`webkitdirectory`), preview/edição em drawer
+- [x] Remoção/prune de volume libera o helper antes (senão ele prende o volume "em uso")
+
 ## Ideias sem prioridade
 
 - Busca global (⌘K) entre containers, imagens, volumes e stacks
