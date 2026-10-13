@@ -157,6 +157,16 @@ Operação numa stack já ocupada → `409` com o `taskId` em andamento (mutex p
 
 ---
 
+## Auto-stop
+
+| Método | Path | Payload | Retorno |
+|---|---|---|---|
+| GET | `/api/autostop` | — | `{ enabled, excluded[], lastRun }` |
+| POST | `/api/autostop/enabled` | `{ enabled }` | estado |
+| POST | `/api/autostop/excluded` | `{ name }` (201) | estado |
+| DELETE | `/api/autostop/excluded` | `?name=` (404 se não está na lista) | estado |
+| POST | `/api/autostop/run` | — | `{ trigger, at, stopped[{ name, ok, error? }] }` |
+
 ## Filesystem
 
 | Método | Path | Query | Retorno |
