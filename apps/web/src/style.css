@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  /* Raio único de borda para todo o app — chega de rounded/rounded-lg/rounded-full ad-hoc. */
+  --radius-app-sm: 0.375rem;
+  --radius-app-md: 0.5rem;
+  --radius-app-lg: 0.75rem;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  /* Acento "cobalto de sinal" — deliberadamente distinto do azul semântico
+     usado no StateBadge (created), pra não confundir ação com estado. */
+  --color-accent: #2f6fe0;
+  --color-accent-hover: #2158b8;
+  --color-accent-soft: #eaf1fd;
+  --color-accent-soft-text: #1d4ed8;
+
+  --color-danger: theme(colors.red.600);
+  --color-danger-hover: theme(colors.red.700);
+  --color-danger-soft: theme(colors.red.50);
+  --color-danger-soft-text: theme(colors.red.700);
+
+  --shadow-card: 0 1px 2px rgba(30, 41, 59, 0.04), 0 1px 3px rgba(30, 41, 59, 0.06);
+  --shadow-elevated: 0 4px 6px rgba(30, 41, 59, 0.05), 0 10px 24px rgba(30, 41, 59, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-accent: #5b9dff;
+    --color-accent-hover: #82b4ff;
+    --color-accent-soft: color-mix(in srgb, #2f6fe0 28%, transparent);
+    --color-accent-soft-text: #a9c8ff;
+
+    --color-danger: theme(colors.red.500);
+    --color-danger-hover: theme(colors.red.400);
+    --color-danger-soft: color-mix(in srgb, theme(colors.red.900) 40%, transparent);
+    --color-danger-soft-text: theme(colors.red.300);
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-elevated: 0 4px 6px rgba(0, 0, 0, 0.3), 0 10px 24px rgba(0, 0, 0, 0.45);
+  }
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Transição sutil e única pra toda interação clicável — sem precisar repetir
+   transition-colors em cada botão/link espalhado pelos componentes. */
+button,
+a {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+/* Foco visível consistente em todo o app — teclado precisa enxergar onde está. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Título de página / label de coluna / corpo — hierarquia tipográfica única
+   entre ContainersView, ImagesView e VolumesView. */
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.col-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Container elevado (cards de tabela, toolbars) — sombra rasa + hairline,
+   mesmo par em todo o app pra não ficar cada tela com seu próprio "flat vs raised". */
+.card-surface {
+  background-color: white;
+  box-shadow: var(--shadow-card);
+}
+
+@media (prefers-color-scheme: dark) {
+  .card-surface {
+    background-color: theme(colors.slate.900);
+  }
+}
+
+/* Colunas numéricas (tamanho, portas, contadores) — dígitos alinhados. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

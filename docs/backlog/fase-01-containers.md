@@ -12,26 +12,26 @@ Ver os containers da máquina numa tabela e conseguir parar, iniciar, reiniciar 
 
 ### Backend
 
-- [ ] `ContainersService.list()` — `listContainers({all})` normalizado para `ContainerSummary`; **nunca** devolva `Dockerode.ContainerInfo` cru
-- [ ] Extrair `compose` do summary a partir das labels `com.docker.compose.*`
-- [ ] `ContainersService.inspect(id)` → `GET /api/containers/:id`
-- [ ] Ações: `start`, `stop({t})`, `restart({t})`, `kill({signal})`, `pause`, `unpause`, `rename({name})`
-- [ ] `DELETE /api/containers/:id?force=&v=` e `POST /api/containers/prune`
-- [ ] `DockerExceptionFilter`: 404 → *"não encontrado (já foi removido?)"*; 409 → mensagem humana + `canForce: true`
-- [ ] `OriginGuard` — valida `Origin` contra allowlist e `Host` contra `localhost|127.0.0.1|[::1]`; exige `X-DockerLocal: 1` em não-GET
-- [ ] DTOs com `ZodValidationPipe`
+- [x] `ContainersService.list()` — `listContainers({all})` normalizado para `ContainerSummary`; **nunca** devolva `Dockerode.ContainerInfo` cru
+- [x] Extrair `compose` do summary a partir das labels `com.docker.compose.*`
+- [x] `ContainersService.inspect(id)` → `GET /api/containers/:id`
+- [x] Ações: `start`, `stop({t})`, `restart({t})`, `kill({signal})`, `pause`, `unpause`, `rename({name})`
+- [x] `DELETE /api/containers/:id?force=&v=` e `POST /api/containers/prune`
+- [x] `DockerExceptionFilter`: 404 → *"não encontrado (já foi removido?)"*; 409 → mensagem humana + `canForce: true`
+- [x] `OriginGuard` — valida `Origin` contra allowlist e `Host` contra `localhost|127.0.0.1|[::1]`; exige `X-DockerLocal: 1` em não-GET
+- [x] DTOs com `ZodValidationPipe`
 
 ### Frontend
 
-- [ ] `containers.store.ts` no padrão de resource store (`shallowRef` + `pending: Set`)
-- [ ] `ResourceTable.vue` genérico — colunas por slot, ações por linha, estado de transição
-- [ ] `StateBadge.vue` (running/exited/paused/restarting/dead) e `RelativeTime.vue`
-- [ ] `ContainersView.vue` — nome, imagem, estado, portas, uptime, projeto compose
-- [ ] `ActionButtons.vue` com spinner enquanto o id está em `pending`
-- [ ] `ConfirmDialog.vue` — remoção pede confirmação; `useConfirm()` composable
-- [ ] Erro 409 na UI oferece **"Remover mesmo assim"** (usa `canForce`), avisando que `force` numa imagem em uso deixa container órfão
-- [ ] Polling de 10 s com pausa em `visibilitychange`; refetch imediato após ação
-- [ ] `EmptyState.vue` e `ErrorBanner.vue`
+- [x] `containers.store.ts` no padrão de resource store (`shallowRef` + `pending: Set`)
+- [x] `ResourceTable.vue` genérico — colunas por slot, ações por linha, estado de transição
+- [x] `StateBadge.vue` (running/exited/paused/restarting/dead) e `RelativeTime.vue`
+- [x] `ContainersView.vue` — nome, imagem, estado, portas, uptime, projeto compose
+- [x] `ActionButtons.vue` com spinner enquanto o id está em `pending`
+- [x] `ConfirmDialog.vue` — remoção pede confirmação; `useConfirm()` composable
+- [x] Erro 409 na UI oferece **"Remover mesmo assim"** (usa `canForce`), avisando que `force` numa imagem em uso deixa container órfão
+- [x] Polling de 10 s com pausa em `visibilitychange`; refetch imediato após ação
+- [x] `EmptyState.vue` e `ErrorBanner.vue`
 
 > Skill: `vue-resource-ui` (seções 1, 2 e 6)
 
@@ -72,3 +72,7 @@ apps/web/src/views/ContainersView.vue
 **`@types/dockerode` mente.** A tipagem 4.0.1 não cobre tudo da API 1.55. Trate dockerode como fonte não tipada na fronteira do service e normalize para `packages/shared`. Isso importa mais na fase 2, onde `container.logs()` tem retorno condicional não tipado — mas a fronteira se estabelece aqui.
 
 **`OriginGuard` é a defesa principal do app**, mais que autenticação. A ameaça real é uma aba de browser em site malicioso fazendo `POST http://127.0.0.1:5100/api/containers/x/start` — sem CORS, um `<form>` consegue. Ver ADR-07.
+
+## Extensão pós-fase: visão e ações agrupadas por projeto
+
+Adicionado depois do critério de aceite original, a pedido: toggle "Agrupar por projeto" na `ContainersView` com seções colapsáveis (`ContainersTable.vue` extraído para reúso), e `GroupActionButtons.vue` com Logs/Iniciar/Parar/Remover em lote por grupo — reaproveitando `store.act()` por container via `Promise.allSettled`, sem endpoint de batch no backend. "Remover todos" trata 409 em duas etapas: tenta sem force, depois oferece forçar só os que colidiram. "Ver logs" do grupo usa o stream agregado da fase 2 (`GET /containers/logs/stream?ids=`), respeitando o teto de 3 SSE por aba.

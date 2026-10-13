@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-bin/
+.cache/
+coverage/
+.env
+*.local
+.DS_Store
+*.log
+*.tsbuildinfo
+packages/shared/src/**/*.js
+packages/shared/src/**/*.js.map
+packages/shared/src/**/*.d.ts

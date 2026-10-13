@@ -14,27 +14,27 @@ Validada no caso mais simples — `docker pull`. Compose (fase 7) e build (fase 
 
 ### Backend
 
-- [ ] `Task` em `packages/shared`: `{ id, kind, label, status: 'running'|'succeeded'|'failed'|'cancelled', startedAt, endedAt?, exitCode?, meta }`
-- [ ] `TaskRegistryService` — `create(kind, label)`, `emit(id, line)`, `succeed`, `fail`, `cancel`, `get`, `list({active})`
-- [ ] Numeração de linhas com `seq` incremental por task
-- [ ] Ring buffer de 5.000 linhas por task (um `build --no-cache` de monorepo gera dezenas de milhares)
-- [ ] `AbortController` por task, para cancelamento cooperativo
-- [ ] Descarte de tasks finalizadas após ~1 h, com cap total
-- [ ] `GET /api/tasks?active=true` e `GET /api/tasks/:id`
-- [ ] `GET /api/tasks/:id/stream` com `@Sse` — lê `Last-Event-ID`, faz replay do buffer a partir de `seq+1`, depois segue ao vivo; `id` do MessageEvent = `seq`
-- [ ] `POST /api/tasks/:id/cancel` e `DELETE /api/tasks/:id` (só se finalizada)
-- [ ] `POST /api/images/pull` — `{ ref }` → `202 {taskId}`, usando `docker.pull()` + `followProgress`
-- [ ] **Checar `errorDetail`**: pull e build falham com HTTP 200; o erro vem como evento no meio do fluxo
+- [x] `Task` em `packages/shared`: `{ id, kind, label, status: 'running'|'succeeded'|'failed'|'cancelled', startedAt, endedAt?, exitCode?, meta }`
+- [x] `TaskRegistryService` — `create(kind, label)`, `emit(id, line)`, `succeed`, `fail`, `cancel`, `get`, `list({active})`
+- [x] Numeração de linhas com `seq` incremental por task
+- [x] Ring buffer de 5.000 linhas por task (um `build --no-cache` de monorepo gera dezenas de milhares)
+- [x] `AbortController` por task, para cancelamento cooperativo
+- [x] Descarte de tasks finalizadas após ~1 h, com cap total
+- [x] `GET /api/tasks?active=true` e `GET /api/tasks/:id`
+- [x] `GET /api/tasks/:id/stream` com `@Sse` — lê `Last-Event-ID`, faz replay do buffer a partir de `seq+1`, depois segue ao vivo; `id` do MessageEvent = `seq`
+- [x] `POST /api/tasks/:id/cancel` e `DELETE /api/tasks/:id` (só se finalizada)
+- [x] `POST /api/images/pull` — `{ ref }` → `202 {taskId}`, usando `docker.pull()` + `followProgress`
+- [x] **Checar `errorDetail`**: pull e build falham com HTTP 200; o erro vem como evento no meio do fluxo
 
 ### Frontend
 
-- [ ] `tasks.store.ts` — tasks ativas + task selecionada no drawer
-- [ ] `useTaskStream.ts` reaproveitando `api/sse.ts`
-- [ ] Extrair `StreamViewer.vue` do `LogViewer` (props de fonte) e usar nos dois
-- [ ] `TaskDrawer.vue` — saída ao vivo, status, botão de cancelar
-- [ ] `TaskIndicator.vue` na `StatusBar` — contador de tasks ativas, abre o drawer
-- [ ] Diálogo de pull: input do `ref`, dispara e abre o drawer
-- [ ] Task falha → toast com o erro; sucesso → refetch da lista de imagens
+- [x] `tasks.store.ts` — tasks ativas + task selecionada no drawer
+- [x] Stream de task reaproveitando `api/sse.ts` — inline em `tasks.store.ts` (`watchTask`) em vez de um composable `useTaskStream.ts` separado; único consumidor, sem duplicação a justificar a extração
+- [x] Lógica de scroll-automático + virtualização compartilhada entre `LogViewer` e `TaskOutput` extraída para `composables/useAutoScrollVirtualizer.ts` (mesmo efeito do `StreamViewer.vue` planejado — DRY sem forçar um componente genérico com slot)
+- [x] `TaskDrawer.vue` — saída ao vivo, status, botão de cancelar
+- [x] `TaskIndicator.vue` na `StatusBar` — contador de tasks ativas, abre o drawer
+- [x] Diálogo de pull: input do `ref`, dispara e abre o drawer
+- [x] Task falha → toast com o erro; sucesso → refetch da lista de imagens
 
 ## Critério de aceite
 
@@ -51,12 +51,12 @@ curl -N localhost:5100/api/tasks/<taskId>/stream
 curl -N -H 'Last-Event-ID: 10' localhost:5100/api/tasks/<taskId>/stream
 ```
 
-- Pull de uma imagem grande pela UI mostra o progresso ao vivo no drawer
-- **F5 no meio do pull:** a saída volta completa e continua ao vivo — o pull não foi interrompido
-- Cancelar uma task em andamento funciona e o status vira `cancelled`
-- `POST /api/images/pull` com `{"ref":"naoexiste/naoexiste:v1"}` → task **`failed`** com mensagem legível (não "succeeded")
-- `TaskIndicator` mostra o contador correto e some ao terminar
-- Ao final do pull, a lista de imagens se atualiza
+- [x] Pull de uma imagem grande pela UI mostra o progresso ao vivo no drawer — testado com `ubuntu:24.04`
+- [x] **F5 no meio do pull:** a saída volta completa e continua ao vivo — o pull não foi interrompido — testado: reload no meio do pull, `TaskIndicator` reapareceu sozinho (`restoreActive()`), drawer reaberto mostrou a saída completa desde a primeira linha
+- [x] Cancelar uma task em andamento funciona e o status vira `cancelled` — testado com `debian:bookworm`, cancelado no meio do download; `docker images` confirma que a imagem não ficou no host
+- [x] `POST /api/images/pull` com `{"ref":"naoexiste/naoexiste:v1"}` → task **`failed`** com mensagem legível (não "succeeded") — testado pela UI, mensagem do registry (404) exibida
+- [x] `TaskIndicator` mostra o contador correto e some ao terminar
+- [x] Ao final do pull, a lista de imagens se atualiza — testado com `hello-world:latest`, apareceu na tabela sem F5
 
 ## Arquivos previstos
 
@@ -65,11 +65,10 @@ apps/api/src/tasks/{tasks.module.ts,tasks.controller.ts,task-registry.service.ts
 apps/api/src/images/image-pull.service.ts
 packages/shared/src/task.types.ts
 apps/web/src/api/tasks.api.ts
-apps/web/src/stores/tasks.store.ts
-apps/web/src/composables/useTaskStream.ts
+apps/web/src/stores/tasks.store.ts        (stream SSE inline via watchTask(), sem composable separado)
 apps/web/src/components/tasks/{TaskDrawer.vue,TaskOutput.vue}
 apps/web/src/components/layout/TaskIndicator.vue
-apps/web/src/components/logs/StreamViewer.vue   (extraído de LogViewer)
+apps/web/src/composables/useAutoScrollVirtualizer.ts   (scroll+virtualização compartilhada com LogViewer)
 ```
 
 ## Por que Task, e não request síncrona

@@ -78,16 +78,19 @@ Eventos do stream de logs:
 | POST | `/api/images/prune` | `{ danglingOnly?: boolean }` |
 | POST | `/api/images/pull` | `{ ref: "nginx:alpine" }` → `202 {taskId}` |
 | POST | `/api/images/build` | ↓ → `202 {taskId}` |
+| POST | `/api/images/:id/scan` | — → `202 {taskId}` |
 
 ```jsonc
 // POST /api/images/build
 { "contextPath": "/home/wesley/Documents/development/Capp",
-  "dockerfile": "backend/Dockerfile",     // RELATIVO ao contexto, com "/"
+  "dockerfile": "/home/wesley/Documents/development/Capp/backend/Dockerfile", // ABSOLUTO — passa pelo PathSafetyService, igual todo path vindo do cliente
   "tags": ["capp-backend:dev"],
   "buildArgs": { "NODE_ENV": "development" },
-  "target": null, "noCache": false, "pull": false,
-  "engine": "cli" }                        // "cli" (BuildKit, padrão) | "api" (dockerode)
+  "target": null, "noCache": false,
+  "engine": "cli" }                        // "cli" (BuildKit, padrão) | "api" (dockerode, fallback)
 ```
+
+`POST /:id/scan` roda `aquasec/trivy` (imagem oficial, versão travada em `docs/decisoes.md`) como container sibling via `docker run` + o mesmo socket do app — nunca um binário instalado no host (ver ADR-12). A `Task` termina com `meta.scan` no formato `ImageScanResult` (`packages/shared`): contagem por severidade + lista de `ImageVulnerability` (CVE, pacote, versão instalada/corrigida) + `cleanPackages` (pacotes do SBOM, via `--list-all-pkgs`, sem nenhuma CVE conhecida). Primeira execução baixa a imagem do Trivy e o DB de CVEs — pode levar minutos; scans seguintes usam o volume nomeado `dockerlocal_trivy_cache` e ficam rápidos.
 
 ---
 
@@ -102,6 +105,20 @@ Eventos do stream de logs:
 | POST | `/api/volumes/prune` | — |
 
 Cada volume vem enriquecido com `usedBy: string[]` e `compose?.project`. Montar `usedBy` exige cruzar com `listContainers({all:true})` e olhar `Mounts[].Name` — vale o custo: é a informação que evita o 409 cego.
+
+### Navegador de arquivos do volume
+
+| Método | Path | Payload |
+|---|---|---|
+| GET | `/api/volumes/:name/files?path=` | → `VolumeFsListResult` (`path` default `/`) |
+| GET | `/api/volumes/:name/files/read?path=` | → `VolumeFsReadResult` (prévia até 512 KB) |
+| GET | `/api/volumes/:name/files/download?path=` | stream — arquivo cru, ou `.tar` se `path` for diretório |
+| PUT | `/api/volumes/:name/files?path=&overwrite=&expectedMtime=` | body cru (`application/octet-stream`), `Content-Length` obrigatório, até 1 GiB |
+| POST | `/api/volumes/:name/files/mkdir` | `{ path }` |
+| POST | `/api/volumes/:name/files/rename` | `{ from, to }` |
+| DELETE | `/api/volumes/:name/files?path=` | `rm -rf` do path (recusa a raiz do volume) |
+
+Todo acesso passa por um container helper `busybox` sob demanda (ver ADR-13) — não existe path de host equivalente a `PathSafetyService.resolveSafe()` aqui, porque o "filesystem" navegado é o rootfs de um container descartável, não o do host. `PUT` sem `overwrite=true` em cima de um path existente responde `409 { canForce: true }`; com `expectedMtime` divergente do mtime atual, responde `409 { conflict: "modified" }`. Volume `isSelf` (o do próprio app) é sempre somente leitura — mutações voltam `403`.
 
 ---
 
@@ -139,6 +156,16 @@ StackSummary = {
 Operação numa stack já ocupada → `409` com o `taskId` em andamento (mutex por projeto).
 
 ---
+
+## Auto-stop
+
+| Método | Path | Payload | Retorno |
+|---|---|---|---|
+| GET | `/api/autostop` | — | `{ enabled, excluded[], lastRun }` |
+| POST | `/api/autostop/enabled` | `{ enabled }` | estado |
+| POST | `/api/autostop/excluded` | `{ name }` (201) | estado |
+| DELETE | `/api/autostop/excluded` | `?name=` (404 se não está na lista) | estado |
+| POST | `/api/autostop/run` | — | `{ trigger, at, stopped[{ name, ok, error? }] }` |
 
 ## Filesystem
 

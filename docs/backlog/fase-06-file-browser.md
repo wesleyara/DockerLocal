@@ -12,40 +12,40 @@ Este é o módulo mais sensível do app em termos de segurança.
 
 ### Backend
 
-- [ ] `FS_ROOTS` no `.env` (lista separada por `:`), passando por `realpath` no boot
-- [ ] `PathSafetyService.resolveSafe(requested)`:
+- [x] `FS_ROOTS` no `.env` (lista separada por `:`), passando por `realpath` no boot
+- [x] `PathSafetyService.resolveSafe(requested)`:
   - rejeitar path não absoluto
   - `path.resolve()` → mata `../..`
   - **`fs.realpath()` ANTES da comparação** → mata symlink apontando para fora
   - comparar com `real === root || real.startsWith(root + path.sep)`
-- [ ] `GET /api/fs/roots` → `[{ label, path }]`
-- [ ] `GET /api/fs/list?path=&showHidden=false` → `{ path, parent, entries[] }`; `parent: null` quando o path é uma raiz
-- [ ] Marcar `isCompose` / `isDockerfile` em cada entry
-- [ ] `GET /api/fs/detect?path=` → `{ kind, composeFiles[], dockerfiles[] }`
-- [ ] `GET /api/fs/read?path=` — allowlist de nomes (`Dockerfile*`, `*.yml`, `*.yaml`), limite de 512 KB, `truncated: bool`
-- [ ] **Bloquear leitura de `.env`, `*.pem`, `*.key`** — o browser precisa poder *selecionar* um `.env` como argumento do compose, mas nunca *exibir* o conteúdo
-- [ ] Ordenar: diretórios primeiro, depois alfabético
-- [ ] Tratar `EACCES` e `ENOENT` com mensagem clara em vez de 500
+- [x] `GET /api/fs/roots` → `[{ label, path }]`
+- [x] `GET /api/fs/list?path=&showHidden=false` → `{ path, parent, entries[] }`; `parent: null` quando o path é uma raiz
+- [x] Marcar `isCompose` / `isDockerfile` em cada entry
+- [x] `GET /api/fs/detect?path=` → `{ kind, composeFiles[], dockerfiles[] }`
+- [x] `GET /api/fs/read?path=` — allowlist de nomes (`Dockerfile*`, `*.yml`, `*.yaml`), limite de 512 KB, `truncated: bool`
+- [x] **Bloquear leitura de `.env`, `*.pem`, `*.key`** — o browser precisa poder *selecionar* um `.env` como argumento do compose, mas nunca *exibir* o conteúdo
+- [x] Ordenar: diretórios primeiro, depois alfabético
+- [x] Tratar `EACCES` e `ENOENT` com mensagem clara em vez de 500
 
 ### Testes (escrever nesta fase, não depois)
 
-- [ ] `../../../etc/passwd` → 403
-- [ ] `/etc` (fora da raiz) → 403
-- [ ] symlink dentro da raiz apontando para fora → 403
-- [ ] `/home/wesley/Documents/development-secreto` **não** passa como filho de `/home/wesley/Documents/development` (o teste do `path.sep`)
-- [ ] path relativo → 400
-- [ ] `read` de um `.env` → 403
-- [ ] arquivo acima de 512 KB → `truncated: true`
+- [x] `../../../etc/passwd` → 403
+- [x] `/etc` (fora da raiz) → 403
+- [x] symlink dentro da raiz apontando para fora → 403
+- [x] `/home/wesley/Documents/development-secreto` **não** passa como filho de `/home/wesley/Documents/development` (o teste do `path.sep`)
+- [x] path relativo → 400
+- [x] `read` de um `.env` → 403
+- [x] arquivo acima de 512 KB → `truncated: true`
 
 ### Frontend
 
-- [ ] `FileBrowserDialog.vue` com prop `mode: 'compose' | 'dockerfile' | 'dir'`
-- [ ] `RootSelector.vue` no topo, `FileList.vue` com breadcrumb navegável
-- [ ] Ícone distinto para compose e Dockerfile; botão "usar este arquivo" habilitado só quando o tipo casa com o `mode`
-- [ ] Ao entrar num diretório, chamar `/api/fs/detect` e **destacar as sugestões** — economiza a maior parte dos cliques
-- [ ] Não permitir navegar acima da raiz (`parent: null`)
-- [ ] Preview do arquivo selecionado (via `/api/fs/read`)
-- [ ] `SettingsView.vue` mostrando as raízes configuradas
+- [x] `FileBrowserDialog.vue` com prop `mode: 'compose' | 'dockerfile' | 'dir'`
+- [x] `RootSelector.vue` no topo, `FileList.vue` com breadcrumb navegável
+- [x] Ícone distinto para compose e Dockerfile; botão "usar este arquivo" habilitado só quando o tipo casa com o `mode`
+- [x] Ao entrar num diretório, chamar `/api/fs/detect` e **destacar as sugestões** — economiza a maior parte dos cliques
+- [x] Não permitir navegar acima da raiz (`parent: null`)
+- [x] Preview do arquivo selecionado (via `/api/fs/read`)
+- [x] `SettingsView.vue` mostrando as raízes configuradas
 
 ## Critério de aceite
 
