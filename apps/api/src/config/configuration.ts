@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { Env } from './env.schema';
 
 export interface AppConfig {
@@ -7,6 +9,7 @@ export interface AppConfig {
   fsRoots: string[];
   authToken?: string;
   allowedOrigins: string[];
+  dataDir: string;
 }
 
 export function buildConfig(env: Env): AppConfig {
@@ -21,5 +24,8 @@ export function buildConfig(env: Env): AppConfig {
     allowedOrigins: env.ALLOWED_ORIGINS.split(',')
       .map((o) => o.trim())
       .filter(Boolean),
+    dataDir:
+      env.DATA_DIR ??
+      (env.DOCKER_LOCAL_CONTAINER ? '/data' : join(homedir(), '.dockerlocal')),
   };
 }

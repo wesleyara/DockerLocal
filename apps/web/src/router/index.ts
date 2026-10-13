@@ -50,6 +50,11 @@ const router = createRouter({
       component: () => import("@/views/StackDetailView.vue"),
     },
     {
+      path: "/autostop",
+      name: "autostop",
+      component: () => import("@/views/AutoStopView.vue"),
+    },
+    {
       path: "/maintenance",
       name: "maintenance",
       component: () => import("@/views/MaintenanceView.vue"),

@@ -9,6 +9,7 @@ const links = [
   { to: "/images", label: "Images", icon: "lucide:layers" },
   { to: "/volumes", label: "Volumes", icon: "lucide:database" },
   { to: "/stacks", label: "Stacks", icon: "lucide:boxes" },
+  { to: "/autostop", label: "Auto-stop", icon: "lucide:power" },
   { to: "/maintenance", label: "Manutenção", icon: "lucide:sparkles" },
   { to: "/settings", label: "Configurações", icon: "lucide:settings" },
 ];
