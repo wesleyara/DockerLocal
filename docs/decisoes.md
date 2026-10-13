@@ -175,6 +175,14 @@ A fase 9 original previa uma CLI própria (`dockerlocal up/down/status/...`, est
 
 ---
 
+## ADR-14 — Auto-stop no boot: gatilho por `boot_id`, exclusão por nome, `DATA_DIR`
+
+- **Gatilho:** compara `/proc/sys/kernel/random/boot_id` (não é namespaced; reflete o host) com o último valor gravado. Reiniciar ou atualizar só o DockerLocal não derruba containers. Sem `boot_id` legível, o auto-stop não roda.
+- **Janela de boot (120 s):** o daemon sobe os containers em paralelo com o app; eventos `start` na janela também são tratados.
+- **Exclusão por nome**, não por id (o id muda a cada recriação). O próprio container e os helpers são sempre poupados.
+- **`DATA_DIR`:** `/data` em container, `~/.dockerlocal` fora. `~/.dockerlocal` em container cai em `HOME` do host (compose seta `HOME: ${HOME}`), fora do volume `dockerlocal_data`. Arquivo próprio `autostop.json`, para não disputar escrita com o `config.json` (ADR-10).
+
+
 ## Versões travadas
 
 Verificadas no registry em 2026-08-25.

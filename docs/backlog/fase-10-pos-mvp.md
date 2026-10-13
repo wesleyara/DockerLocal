@@ -74,6 +74,24 @@ Trabalho feito durante as fases 6-10 que não estava previsto nos arquivos de fa
 - [x] **UX de import de stack** — detecção automática de `.env` na mesma pasta do compose escolhido, em vez de exigir seleção manual; mensagem explicativa no seletor de pastas quando não há raiz configurada ainda
 - [x] **Proteção contra auto-remoção estendida a volumes nomeados** — `SelfDetectService.isSelfVolume()` cobre os volumes montados pelo próprio container (ex. `dockerlocal_data`), bloqueando `DELETE /api/volumes/:name` com 403 do mesmo jeito que já valia para containers/stacks/imagens (ADR-09); não cobre volumes de recursos sibling descartáveis como o cache do trivy
 
+## 10.8 Auto-stop no boot — ☑ concluído
+
+No boot da máquina o daemon sobe tudo que tem `restart: always/unless-stopped`. Esta entrega para todos os containers, exceto o DockerLocal e uma lista de exclusão editável na UI. Ver ADR-14.
+
+- [x] `AutostopService` (`apps/api/src/autostop/`) roda em `OnApplicationBootstrap` e só age se o `boot_id` do kernel mudou desde o último registrado
+- [x] Janela de ~120 s após o boot: containers que o daemon subir depois também são parados (eventos `start`)
+- [x] Nunca para o próprio container, helpers (`com.dockerlocal.helper`) nem nomes da lista; falha em um container não aborta os demais
+- [x] Lista, flag `enabled`, `lastBootId` e `lastRun` persistidos em `<DATA_DIR>/autostop.json` (`/data` em container)
+- [x] `GET /api/autostop`, `POST /enabled`, `POST|DELETE /excluded`, `POST /run`
+- [x] Aba "Auto-stop" (`AutoStopView.vue`): toggle geral, checkbox por container, órfãos removíveis, último resultado, "Executar agora"
+- [x] Specs jest do serviço e da persistência
+
+### Critério de aceite
+
+- Com `lastBootId` diferente do `boot_id` atual em `autostop.json`, reiniciar o container `dockerlocal` para só os containers fora da lista
+- Reiniciar de novo sem mudar o `boot_id` não para nada
+- `docker compose up -d --force-recreate` preserva a lista
+
 ## 10.9 Navegador de volumes — ☑ concluído
 
 Navegar, baixar, enviar e editar arquivos dentro de um volume nomeado, pela web, com URL própria (`/volumes/:name/files/...`).

@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { FilesystemModule } from './filesystem/filesystem.module';
 import { StacksModule } from './stacks/stacks.module';
 import { ExecModule } from './exec/exec.module';
+import { AutostopModule } from './autostop/autostop.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ExecModule } from './exec/exec.module';
     FilesystemModule,
     StacksModule,
     ExecModule,
+    AutostopModule,
   ],
 })
 export class AppModule {}

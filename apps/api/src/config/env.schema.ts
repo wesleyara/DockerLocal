@@ -25,6 +25,9 @@ export const envSchema = z.object({
   // vem de fora: o `ports: ["127.0.0.1:5100:5100"]` do compose garante que
   // só o loopback do HOST alcança essa porta — nunca a LAN.
   DOCKER_LOCAL_CONTAINER: z.coerce.boolean().default(false),
+  // Onde ficam os dados persistentes do app (ex.: autostop.json). Padrão:
+  // `/data` (volume dockerlocal_data) em container, `~/.dockerlocal` fora.
+  DATA_DIR: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
