@@ -15,6 +15,8 @@ export interface TaskLine {
   text: string;
   /** Presente apenas em linhas de progresso por camada (ex.: pull de imagem). */
   progress?: TaskLineProgress;
+  /** `text` são bytes crus de um PTY (sem quebra de linha implícita). */
+  raw?: boolean;
 }
 
 export interface Task {

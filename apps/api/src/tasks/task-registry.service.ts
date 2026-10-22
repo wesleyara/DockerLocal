@@ -29,6 +29,8 @@ export interface TaskHandle {
     text: string,
     progress?: TaskLineProgress,
   ): void;
+  /** Bytes crus de um pseudo-terminal (ANSI, `\r`) — o front passa direto ao xterm. */
+  emitRaw(data: string): void;
   succeed(meta?: Record<string, unknown>): void;
   fail(message: string): void;
 }
@@ -80,6 +82,7 @@ export class TaskRegistryService implements OnModuleDestroy {
       id,
       signal: this.tasks.get(id)!.controller.signal,
       emit: (stream, text, progress) => this.emit(id, stream, text, progress),
+      emitRaw: (data) => this.emit(id, 'stdout', data, undefined, true),
       succeed: (m) => this.finish(id, 'succeeded', { meta: m }),
       fail: (message) => this.finish(id, 'failed', { message }),
     };
@@ -113,10 +116,12 @@ export class TaskRegistryService implements OnModuleDestroy {
     stream: 'stdout' | 'stderr',
     text: string,
     progress?: TaskLineProgress,
+    raw?: boolean,
   ): void {
     const record = this.tasks.get(id);
     if (!record) return;
     const line: TaskLine = { seq: record.seq++, stream, text, progress };
+    if (raw) line.raw = true;
     record.buffer.push(line);
     record.lines$.next(line);
   }

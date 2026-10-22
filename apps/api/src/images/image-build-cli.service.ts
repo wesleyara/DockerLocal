@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
@@ -8,10 +7,9 @@ import {
   TaskHandle,
   TaskRegistryService,
 } from '../tasks/task-registry.service';
-import { LineSplitter } from '../common/utils/line-splitter';
+import { runInPty } from '../common/utils/pty-runner';
 import { BuildImageBody } from './dto/build-image.dto';
 
-const KILL_GRACE_MS = 10_000;
 const CONTEXT_WARN_THRESHOLD = 20_000;
 
 /**
@@ -97,7 +95,7 @@ export class ImageBuildCliService {
       const args = [
         'build',
         '--progress',
-        'plain',
+        'tty',
         '-f',
         dockerfileAbs,
         ...body.tags.flatMap((t) => ['-t', t]),
@@ -128,45 +126,9 @@ export class ImageBuildCliService {
     contextPath: string,
     args: string[],
   ): Promise<number> {
-    return new Promise((resolvePromise) => {
-      const child = spawn('docker', args, {
-        cwd: contextPath,
-        shell: false,
-        env: {
-          ...process.env,
-          DOCKER_BUILDKIT: '1',
-          BUILDKIT_PROGRESS: 'plain',
-          NO_COLOR: '1',
-        },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-
-      child.stdout.setEncoding('utf8');
-      child.stderr.setEncoding('utf8');
-      child.stdout
-        .pipe(new LineSplitter())
-        .on('data', (t: string) => handle.emit('stdout', t));
-      child.stderr
-        .pipe(new LineSplitter())
-        .on('data', (t: string) => handle.emit('stderr', t));
-
-      const onAbort = () => {
-        child.kill('SIGINT');
-        const killTimer = setTimeout(() => {
-          if (!child.killed) child.kill('SIGKILL');
-        }, KILL_GRACE_MS);
-        killTimer.unref?.();
-      };
-      handle.signal.addEventListener('abort', onAbort);
-
-      child.on('close', (code) => {
-        handle.signal.removeEventListener('abort', onAbort);
-        resolvePromise(code ?? -1);
-      });
-      child.on('error', (err) => {
-        handle.emit('stderr', err.message);
-        resolvePromise(-1);
-      });
+    return runInPty(handle, 'docker', args, {
+      cwd: contextPath,
+      env: { DOCKER_BUILDKIT: '1' },
     });
   }
 }

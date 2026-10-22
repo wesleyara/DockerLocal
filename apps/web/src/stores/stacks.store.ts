@@ -81,6 +81,7 @@ export const useStacksStore = defineStore("stacks", () => {
         label: `${action} ${project}`,
         status: "running" as const,
         startedAt: Date.now(),
+        meta: { project },
       }));
       tasks.track(task);
       tasks.open(taskId);

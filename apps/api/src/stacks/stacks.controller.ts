@@ -183,7 +183,6 @@ export class StacksController {
         configFiles: [composeFilePath],
         args,
         envFile,
-        progress: willBuild ? 'plain' : 'json',
         preflightWarnings,
       }),
     );
@@ -253,7 +252,6 @@ export class StacksController {
         workingDir: target.workingDir,
         configFiles: target.configFiles,
         args,
-        progress: body.build ? 'plain' : 'json',
       }),
     );
   }
@@ -335,7 +333,7 @@ export class StacksController {
     @Body(new ZodValidationPipe(composeBuildBodySchema)) body: ComposeBuildBody,
   ): Promise<{ taskId: string }> {
     const target = await this.discovery.resolveTarget(params.project);
-    const args = ['build', '--progress', 'plain'];
+    const args = ['build'];
     if (body.noCache) args.push('--no-cache');
     if (body.services?.length) args.push(...body.services);
 
@@ -473,7 +471,6 @@ export class StacksController {
         workingDir: target.workingDir,
         configFiles: target.configFiles,
         args: [action, ...(services ?? [])],
-        progress: action === 'pull' ? 'json' : undefined,
       }),
     );
   }

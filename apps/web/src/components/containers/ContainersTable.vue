@@ -10,6 +10,8 @@ import ActionButtons from "@/components/common/ActionButtons.vue";
 import CopyableText from "@/components/common/CopyableText.vue";
 import { useSortableTable } from "@/composables/useSortableTable";
 import { computed } from "vue";
+import TaskBadge from "@/components/tasks/TaskBadge.vue";
+import { useTasksStore } from "@/stores/tasks.store";
 
 const props = withDefaults(
   defineProps<{
@@ -19,6 +21,8 @@ const props = withDefaults(
   }>(),
   { showProjectColumn: true },
 );
+
+const tasksStore = useTasksStore();
 
 const itemsRef = computed(() => props.items);
 const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
@@ -54,6 +58,10 @@ function portUrl(p: { public?: number; private: number; type: string }): string 
         <span class="inline-flex items-center gap-1.5">
           {{ item.name }}
           <SelfBadge v-if="item.isSelf" />
+          <TaskBadge
+            v-if="item.compose && tasksStore.runningForProject(item.compose.project)"
+            :task="tasksStore.runningForProject(item.compose.project)!"
+          />
         </span>
       </td>
       <td class="px-3 py-2 text-slate-500"><CopyableText :text="item.image" max-width="220px" /></td>

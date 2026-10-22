@@ -12,7 +12,7 @@ const mostRecentActiveId = computed(() => {
 });
 
 function openDrawer(): void {
-  const id = store.selectedId ?? mostRecentActiveId.value;
+  const id = mostRecentActiveId.value ?? store.selectedId;
   if (id) store.open(id);
 }
 </script>

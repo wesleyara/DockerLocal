@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { watch } from "vue";
+import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
 import { useUiStore } from "@/stores/ui.store";
+import { useTasksStore } from "@/stores/tasks.store";
 
 const links = [
   { to: "/containers", label: "Containers", icon: "lucide:box" },
@@ -15,6 +16,21 @@ const links = [
 ];
 
 const ui = useUiStore();
+const tasks = useTasksStore();
+
+// Seções com task rodando — o ponto some quando termina.
+const busyPaths = computed(() => {
+  const paths = new Set<string>();
+  for (const t of tasks.running) {
+    if (t.kind.startsWith("compose-")) {
+      paths.add("/stacks");
+      paths.add("/containers");
+    } else if (t.kind.startsWith("image-")) {
+      paths.add("/images");
+    }
+  }
+  return paths;
+});
 const route = useRoute();
 
 // No mobile o menu é um drawer — fecha sozinho ao trocar de rota.
@@ -53,6 +69,12 @@ watch(() => route.path, () => ui.closeMobileNav());
     >
       <Icon :icon="link.icon" class="h-4 w-4 shrink-0" />
       {{ link.label }}
+      <Icon
+        v-if="busyPaths.has(link.to)"
+        icon="lucide:loader-2"
+        class="ml-auto h-3.5 w-3.5 shrink-0 animate-spin"
+        title="Task em andamento"
+      />
     </RouterLink>
   </nav>
 </template>

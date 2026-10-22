@@ -6,6 +6,8 @@ import { useStacksStore } from "@/stores/stacks.store";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import SelfBadge from "@/components/common/SelfBadge.vue";
+import TaskBadge from "@/components/tasks/TaskBadge.vue";
+import { useTasksStore } from "@/stores/tasks.store";
 
 const props = defineProps<{ stack: StackSummary }>();
 
@@ -13,7 +15,9 @@ const store = useStacksStore();
 const { confirm } = useConfirm();
 const toast = useToast();
 
-const busy = computed(() => store.pending.has(props.stack.project));
+const tasksStore = useTasksStore();
+const activeTask = computed(() => tasksStore.runningForProject(props.stack.project));
+const busy = computed(() => store.pending.has(props.stack.project) || !!activeTask.value);
 
 const statusTone: Record<StackStatus, string> = {
   running: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -94,7 +98,10 @@ async function handleRemoveFromRegistry(): Promise<void> {
           <Icon icon="lucide:boxes" class="h-4 w-4 shrink-0 text-slate-400" />
           <span class="truncate">{{ stack.project }}</span>
         </router-link>
-        <SelfBadge v-if="stack.isSelf" class="mt-1" />
+        <div class="mt-1 flex flex-wrap items-center gap-1.5">
+          <SelfBadge v-if="stack.isSelf" />
+          <TaskBadge v-if="activeTask" :task="activeTask" />
+        </div>
         <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400" :title="stack.workingDir">
           {{ stack.workingDir || "sem working dir conhecido" }}
         </p>

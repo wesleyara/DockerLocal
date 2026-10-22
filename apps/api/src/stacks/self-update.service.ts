@@ -51,7 +51,7 @@ export class SelfUpdateService {
       label: `build ${target.project} (self)`,
       workingDir: target.workingDir,
       configFiles: target.configFiles,
-      args: ['build', '--progress', 'plain'],
+      args: ['build'],
     });
 
     if (started) {

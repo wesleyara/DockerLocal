@@ -6,7 +6,11 @@ import { useTasksStore } from "@/stores/tasks.store";
 import { useToast } from "@/composables/useToast";
 import TaskOutput from "./TaskOutput.vue";
 import PullProgress from "./PullProgress.vue";
+import TaskTerminal from "./TaskTerminal.vue";
 import ScanResult from "./ScanResult.vue";
+
+// Tasks que rodam o CLI num PTY e entregam bytes crus ao xterm.
+const PTY_KINDS = /^(compose-|image-build)/;
 
 const store = useTasksStore();
 const toast = useToast();
@@ -84,10 +88,8 @@ async function handleCancel(): Promise<void> {
         </p>
 
         <ScanResult v-if="scanResult" :result="scanResult" />
-        <PullProgress
-          v-else-if="task && ['image-pull', 'compose-up', 'compose-pull'].includes(task.kind)"
-          :lines="lines"
-        />
+        <PullProgress v-else-if="task?.kind === 'image-pull'" :lines="lines" />
+        <TaskTerminal v-else-if="task && PTY_KINDS.test(task.kind)" :key="task.id" :lines="lines" />
         <TaskOutput v-else :lines="lines" />
       </div>
     </div>

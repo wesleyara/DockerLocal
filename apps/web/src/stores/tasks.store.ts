@@ -25,6 +25,32 @@ export const useTasksStore = defineStore("tasks", () => {
     () => [...tasks.values()].filter((t) => t.status === "running").length,
   );
 
+  const running = computed(() =>
+    [...tasks.values()]
+      .filter((t) => t.status === "running")
+      .sort((a, b) => b.startedAt - a.startedAt),
+  );
+
+  /** Task de compose em andamento para a stack (meta.project vem do servidor). */
+  function runningForProject(project: string): Task | undefined {
+    return running.value.find((t) => t.meta?.project === project);
+  }
+
+  /** Task em andamento (build/pull/scan) que referencia alguma das tags da imagem. */
+  function runningForImage(repoTags: string[]): Task | undefined {
+    if (repoTags.length === 0) return undefined;
+    const norm = (ref: string) => (/[:@][^/]*$/.test(ref) ? ref : `${ref}:latest`);
+    const wanted = new Set(repoTags.map(norm));
+    return running.value.find((t) => {
+      if (!t.kind.startsWith("image-")) return false;
+      const refs = [
+        ...((t.meta?.tags as string[] | undefined) ?? []),
+        ...[t.meta?.ref, t.meta?.imageRef].filter((r): r is string => typeof r === "string"),
+      ];
+      return refs.some((r) => wanted.has(norm(r)));
+    });
+  }
+
   function linesFor(id: string): TaskLine[] {
     return linesByTask.get(id) ?? [];
   }
@@ -103,6 +129,9 @@ export const useTasksStore = defineStore("tasks", () => {
     selectedId,
     drawerOpen,
     activeCount,
+    running,
+    runningForProject,
+    runningForImage,
     linesFor,
     restoreActive,
     track,
