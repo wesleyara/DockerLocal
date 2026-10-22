@@ -36,7 +36,7 @@ const destructive = computed(() => options.value.destructive ?? true);
           <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">
             {{ options.title }}
           </h2>
-          <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          <p class="mt-2 break-words text-sm text-slate-600 dark:text-slate-400">
             {{ options.message }}
           </p>
 

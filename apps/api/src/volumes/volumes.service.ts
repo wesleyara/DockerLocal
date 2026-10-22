@@ -22,9 +22,10 @@ export class VolumesService {
   ) {}
 
   async list(): Promise<VolumesListResult> {
-    const [{ Volumes, Warnings }, containers] = await Promise.all([
+    const [{ Volumes, Warnings }, containers, sizes] = await Promise.all([
       this.docker.listVolumes(),
       this.docker.listContainers({ all: true }),
+      this.volumeSizes(),
     ]);
 
     const usedBy = new Map<string, string[]>();
@@ -42,7 +43,11 @@ export class VolumesService {
 
     return {
       volumes: (Volumes ?? []).map((v) =>
-        this.normalize(v as VolumeInspectInfoRaw, usedBy.get(v.Name) ?? []),
+        this.normalize(
+          v as VolumeInspectInfoRaw,
+          usedBy.get(v.Name) ?? [],
+          sizes.get(v.Name),
+        ),
       ),
       warnings: Warnings ?? [],
     };
@@ -78,7 +83,29 @@ export class VolumesService {
     return this.docker.pruneVolumes(filters ? { filters } : {});
   }
 
-  private normalize(v: VolumeInspectInfoRaw, usedBy: string[]): VolumeSummary {
+  /** `listVolumes` não traz `UsageData`; só o `/system/df` calcula o tamanho. */
+  private async volumeSizes(): Promise<Map<string, number>> {
+    const sizes = new Map<string, number>();
+    try {
+      const df = (await this.docker.df()) as {
+        Volumes?: { Name: string; UsageData?: { Size?: number } }[];
+      };
+      for (const v of df.Volumes ?? []) {
+        const size = v.UsageData?.Size;
+        // -1 = daemon não calculou (driver sem suporte)
+        if (typeof size === 'number' && size >= 0) sizes.set(v.Name, size);
+      }
+    } catch {
+      // tamanho é informação extra — a listagem não deve falhar por causa dele
+    }
+    return sizes;
+  }
+
+  private normalize(
+    v: VolumeInspectInfoRaw,
+    usedBy: string[],
+    size?: number,
+  ): VolumeSummary {
     const labels = v.Labels ?? {};
 
     return {
@@ -89,7 +116,7 @@ export class VolumesService {
       labels,
       project: labels[COMPOSE_PROJECT_LABEL],
       usedBy,
-      size: v.UsageData?.Size,
+      size,
       isSelf: this.selfDetect.isSelfVolume(v.Name),
     };
   }
