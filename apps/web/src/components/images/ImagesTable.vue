@@ -7,8 +7,12 @@ import RelativeTime from "@/components/common/RelativeTime.vue";
 import ActionButtons from "@/components/images/ActionButtons.vue";
 import SelfBadge from "@/components/common/SelfBadge.vue";
 import CopyableText from "@/components/common/CopyableText.vue";
+import TaskBadge from "@/components/tasks/TaskBadge.vue";
+import { useTasksStore } from "@/stores/tasks.store";
 import { formatBytes } from "@/utils/format";
 import { useSortableTable } from "@/composables/useSortableTable";
+
+const tasksStore = useTasksStore();
 
 const props = defineProps<{
   items: ImageSummary[];
@@ -51,6 +55,10 @@ const { sorted, sortKey, sortDir, toggleSort } = useSortableTable(itemsRef, {
             dangling
           </span>
           <SelfBadge v-if="item.isSelf" />
+          <TaskBadge
+            v-if="tasksStore.runningForImage(item.repoTags)"
+            :task="tasksStore.runningForImage(item.repoTags)!"
+          />
         </div>
       </td>
       <td class="px-3 py-2 font-mono text-xs text-slate-500">{{ item.shortId }}</td>

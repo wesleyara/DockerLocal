@@ -66,7 +66,7 @@ async function pruneUnused(): Promise<void> {
 
     <TableSkeleton
       v-else-if="store.loading && store.items.length === 0"
-      :columns="6"
+      :columns="7"
       class="card-surface overflow-hidden rounded-app-lg border border-slate-200/80 dark:border-slate-800"
     />
 

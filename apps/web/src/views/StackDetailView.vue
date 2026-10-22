@@ -13,6 +13,8 @@ import LogViewer from "@/components/logs/LogViewer.vue";
 import StackServiceRow from "@/components/stacks/StackServiceRow.vue";
 import ErrorBanner from "@/components/common/ErrorBanner.vue";
 import SelfBadge from "@/components/common/SelfBadge.vue";
+import TaskBadge from "@/components/tasks/TaskBadge.vue";
+import { useTasksStore } from "@/stores/tasks.store";
 
 const route = useRoute();
 const router = useRouter();
@@ -52,7 +54,9 @@ watch(
 );
 void store.fetch();
 
-const busy = computed(() => store.pending.has(project.value));
+const tasksStore = useTasksStore();
+const activeTask = computed(() => tasksStore.runningForProject(project.value));
+const busy = computed(() => store.pending.has(project.value) || !!activeTask.value);
 
 async function run(action: "up" | "restart" | "build"): Promise<void> {
   try {
@@ -169,6 +173,7 @@ function handleDownload(): void {
         {{ project }}
       </h1>
       <SelfBadge v-if="detail?.isSelf" />
+      <TaskBadge v-if="activeTask" :task="activeTask" />
 
       <div v-if="detail" class="ml-auto flex items-center gap-1">
         <Icon v-if="busy" icon="lucide:loader-2" class="h-4 w-4 animate-spin text-slate-400" />
