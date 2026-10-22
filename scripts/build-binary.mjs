@@ -173,6 +173,48 @@ function stubOptionalPeerDepsPlugin() {
   };
 }
 
+// SEA não carrega .node do disco via require, e o node-pty procura o addon
+// por caminho relativo. Embute o pty.node (base64) no bundle, grava num
+// arquivo temporário na 1ª execução e carrega com process.dlopen —
+// substituindo o loadNativeModule do node-pty. Só linux-x64: o win-x64
+// precisaria do conpty.node + conpty/ ao lado do exe (ver pendência no
+// card 505), então lá o node-pty falha de forma recuperável na task.
+function embedNodePtyPlugin() {
+  const ptyNode = join(ROOT, 'apps/api/node_modules/node-pty/build/Release/pty.node');
+  return {
+    name: 'embed-node-pty',
+    setup(pluginBuild) {
+      pluginBuild.onLoad({ filter: /node-pty[\\/]lib[\\/]utils\.js$/ }, (args) => {
+        if (!existsSync(ptyNode)) {
+          throw new Error(
+            `pty.node não encontrado em ${ptyNode} — rode "pnpm rebuild node-pty" (precisa de python3/make/g++)`,
+          );
+        }
+        const base64 = readFileSync(ptyNode).toString('base64');
+        const original = readFileSync(args.path, 'utf8');
+        const patched = `${original}
+exports.loadNativeModule = function (name) {
+  if (name !== 'pty') throw new Error('Failed to load native module: ' + name + '.node (não embutido)');
+  var fs = require('node:fs'), os = require('node:os'), path = require('node:path'), crypto = require('node:crypto');
+  var buf = Buffer.from(${JSON.stringify(base64)}, 'base64');
+  var hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
+  var dir = path.join(os.tmpdir(), 'dockerlocal-native-' + hash);
+  var file = path.join(dir, 'pty.node');
+  if (!fs.existsSync(file)) {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(file, buf, { mode: 0o700 });
+  }
+  var mod = { exports: {} };
+  process.dlopen(mod, file);
+  return { dir: dir, module: mod.exports };
+};
+`;
+        return { contents: patched, loader: 'js' };
+      });
+    },
+  };
+}
+
 function embedWebAssetsPlugin() {
   return {
     name: 'embed-web-assets',
@@ -202,8 +244,8 @@ function embedWebAssetsPlugin() {
   };
 }
 
-async function bundleApi() {
-  const outfile = join(OUT_DIR, 'bundle.cjs');
+async function bundleApi(target) {
+  const outfile = join(OUT_DIR, `bundle-${target}.cjs`);
   mkdirSync(OUT_DIR, { recursive: true });
 
   await esbuildBuild({
@@ -213,7 +255,11 @@ async function bundleApi() {
     target: 'node24',
     format: 'cjs',
     outfile,
-    plugins: [stubOptionalPeerDepsPlugin(), embedWebAssetsPlugin()],
+    plugins: [
+      stubOptionalPeerDepsPlugin(),
+      embedWebAssetsPlugin(),
+      ...(target === 'linux-x64' ? [embedNodePtyPlugin()] : []),
+    ],
     logLevel: 'warning',
   });
 
@@ -262,16 +308,15 @@ async function main() {
   run('pnpm', ['--filter', 'web', 'build'], { cwd: ROOT });
   run('pnpm', ['--filter', 'api', 'build'], { cwd: ROOT });
 
-  const bundlePath = await bundleApi();
-
   for (const target of targets) {
-    await buildTarget(target, bundlePath);
+    await buildTarget(target, await bundleApi(target));
   }
 
   if (targets.includes('win-x64')) {
     console.log(
       '\nAviso: o binário win-x64 foi cross-buildado num host não-Windows — não foi executado ' +
-        'aqui pra validar. Teste num Windows de verdade antes de distribuir.',
+        'aqui pra validar. Teste num Windows de verdade antes de distribuir. ' +
+        'Build/compose via terminal (node-pty) NÃO funciona nele ainda: o conpty não é embutido.',
     );
   }
 }

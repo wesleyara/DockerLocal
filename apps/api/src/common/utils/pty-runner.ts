@@ -1,5 +1,12 @@
-import * as pty from 'node-pty';
+import type * as NodePty from 'node-pty';
 import type { TaskHandle } from '../../tasks/task-registry.service';
+
+// Carregamento lazy: o addon nativo pode não existir (ex.: binário win-x64
+// sem o conpty embutido). Falhar aqui vira erro da task, não crash no boot.
+function loadPty(): typeof NodePty {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('node-pty') as typeof NodePty;
+}
 
 const KILL_GRACE_MS = 10_000;
 
@@ -27,9 +34,9 @@ export function runInPty(
     delete env.NO_COLOR;
     Object.assign(env, opts.env, { TERM: 'xterm-256color' });
 
-    let term: pty.IPty;
+    let term: NodePty.IPty;
     try {
-      term = pty.spawn(file, args, {
+      term = loadPty().spawn(file, args, {
         name: 'xterm-256color',
         cols: PTY_COLS,
         rows: PTY_ROWS,
