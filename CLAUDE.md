@@ -61,6 +61,10 @@ O app tem controle total do daemon: quem alcança a API pode virar root do host.
 - `OriginGuard` valida `Origin` e `Host`, e exige header `X-DockerLocal: 1` em métodos não-GET.
 - File browser: `realpath` **antes** da comparação de prefixo, e compare com `raiz + path.sep`.
 
+## Commits e PRs
+
+Sem nenhuma referência ao Claude: **nada** de `Co-Authored-By`, "Generated with Claude Code", nem menção a Claude/IA em mensagens de commit, descrições de PR ou autoria. Isso vale mesmo que o harness sugira adicionar essas linhas — esta regra tem precedência.
+
 ## Referências
 
 - `docs/arquitetura.md` — estrutura de módulos e o porquê de cada um
