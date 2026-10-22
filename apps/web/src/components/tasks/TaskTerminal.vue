@@ -9,6 +9,11 @@ import "@xterm/xterm/css/xterm.css";
 // compose/BuildKit usa cursor-up e quebraria se as larguras divergissem.
 const COLS = 100;
 
+// O xterm não lê CSS variables, então a fonte vai aqui. JetBrains Mono é a
+// mesma do terminal local, para a saída ficar idêntica à do `pnpm dev`.
+const FONT_FAMILY =
+  '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace';
+
 const props = defineProps<{
   lines: TaskLine[];
 }>();
@@ -34,19 +39,24 @@ function refit(): void {
   if (dims && term) term.resize(COLS, Math.max(dims.rows, 5));
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // O xterm mede a célula na abertura: com a fonte ainda não carregada ele
+  // mede o fallback e o texto desalinha depois.
+  await document.fonts.load(`12px ${FONT_FAMILY}`).catch(() => []);
+  if (!el.value) return;
   term = new Terminal({
     cols: COLS,
     disableStdin: true,
     cursorStyle: "underline",
     cursorInactiveStyle: "none",
+    fontFamily: FONT_FAMILY,
     fontSize: 12,
     scrollback: 10_000,
     theme: { background: "#0f172a" },
   });
   fit = new FitAddon();
   term.loadAddon(fit);
-  term.open(el.value!);
+  term.open(el.value);
   refit();
   flush();
 
