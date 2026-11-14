@@ -68,6 +68,10 @@ Builda em `~/.cache` os binários oficiais do Node baixados de nodejs.org (vers�
 
 Qual modo usar: `pnpm dev` pra desenvolver o próprio DockerLocal (hot reload); container quando você já vive em Docker e quer isolamento/restart policy de graça; binário standalone quando quer o mínimo de fricção possível pra só rodar o app.
 
+## Cliente de serviço (token)
+
+Clientes que não são navegador (ex.: o BFF do SmartHomeLocal, que chega por uma rede interna do Docker) não passam nas checagens de `Host`/`Origin`. Defina `AUTH_TOKEN` e envie o mesmo valor no header `X-Service-Token`: o `OriginGuard` aceita a requisição (comparação em tempo constante) sem exigir `Host` de loopback, `Origin` nem `X-DockerLocal`. Sem o header, ou com `AUTH_TOKEN` vazio, o comportamento é o de sempre. Trate o token como senha de root no daemon e mantenha a porta só em `127.0.0.1` ou em rede Docker interna sem portas publicadas.
+
 ## Estrutura
 
 - `apps/api` — NestJS (Express), fala com o daemon via `dockerode` e via CLI (`spawn`)
