@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
 import { APP_CONFIG } from '../../config/config.module';
 import type { AppConfig } from '../../config/configuration';
@@ -17,6 +18,11 @@ export class OriginGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
+
+    // Cliente de serviço (BFF do SmartHomeLocal): não é navegador, não manda
+    // Origin e chega por hostname de rede interna do Docker. O token substitui
+    // as checagens de Host/Origin/X-DockerLocal.
+    if (this.hasValidServiceToken(req)) return true;
 
     const host = req.headers.host;
     if (!host || !SAFE_HOSTS.test(host)) {
@@ -38,5 +44,14 @@ export class OriginGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private hasValidServiceToken(req: Request): boolean {
+    const expected = this.config.authToken;
+    const given = req.headers['x-service-token'];
+    if (!expected || typeof given !== 'string') return false;
+    const a = Buffer.from(given);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
   }
 }
